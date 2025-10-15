@@ -207,7 +207,7 @@ export default function SlidersPage() {
                       <TableCell>
                         <div className="w-20 h-12 relative">
                           <Image
-                            src={slider.image}
+                            src={slider.image || "/placeholder-banner.jpg"}
                             alt={slider.title}
                             fill
                             className="object-cover rounded"

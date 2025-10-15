@@ -268,9 +268,12 @@ export default function EditSliderPage() {
                     {slider.image && (
                       <div className="w-full h-48 relative mb-2">
                         <img 
-                          src={slider.image} 
+                          src={slider.image || "/placeholder-banner.jpg"} 
                           alt="Current slider image"
                           className="w-full h-full object-cover rounded-md"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder-banner.jpg"
+                          }}
                         />
                       </div>
                     )}

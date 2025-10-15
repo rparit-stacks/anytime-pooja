@@ -117,9 +117,12 @@ export function ImageZoom({ src, alt, className = "" }: ImageZoomProps) {
       >
         <img
           ref={imageRef}
-          src={src}
+          src={src || "/placeholder.svg"}
           alt={alt}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(e) => {
+            e.currentTarget.src = "/placeholder.svg"
+          }}
         />
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
           <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -180,7 +183,7 @@ export function ImageZoom({ src, alt, className = "" }: ImageZoomProps) {
 
             {/* Image */}
             <img
-              src={src}
+              src={src || "/placeholder.svg"}
               alt={alt}
               className="max-w-full max-h-full object-contain select-none"
               style={{
@@ -192,6 +195,9 @@ export function ImageZoom({ src, alt, className = "" }: ImageZoomProps) {
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               onWheel={handleWheel}
+              onError={(e) => {
+                e.currentTarget.src = "/placeholder.svg"
+              }}
               draggable={false}
             />
           </div>

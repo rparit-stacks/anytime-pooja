@@ -64,6 +64,9 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
           src={image || "/placeholder.svg"}
           alt={name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            e.currentTarget.src = "/placeholder.svg"
+          }}
         />
         {badge && <Badge className="absolute top-3 left-3 bg-destructive text-destructive-foreground">{badge}</Badge>}
         {discount > 0 && (

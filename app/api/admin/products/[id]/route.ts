@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
-import { writeFile } from "fs/promises"
+import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -108,7 +108,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       // Generate unique filename
       const timestamp = Date.now()
       const filename = `${timestamp}-${image.name}`
-      const filepath = join(process.cwd(), 'public/upload/products', filename)
+      const uploadDir = join(process.cwd(), 'public/upload/products')
+      const filepath = join(uploadDir, filename)
+      
+      // Ensure upload directory exists
+      try {
+        await mkdir(uploadDir, { recursive: true })
+      } catch (error) {
+        // Directory might already exist, ignore error
+        console.log('Upload directory already exists or created')
+      }
       
       await writeFile(filepath, buffer)
       imagePath = `/upload/products/${filename}`
@@ -125,7 +134,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         
         const timestamp = Date.now()
         const filename = `${timestamp}-${file.name}`
-        const filepath = join(process.cwd(), 'public/upload/products', filename)
+        const uploadDir = join(process.cwd(), 'public/upload/products')
+        const filepath = join(uploadDir, filename)
+        
+        // Ensure upload directory exists
+        try {
+          await mkdir(uploadDir, { recursive: true })
+        } catch (error) {
+          // Directory might already exist, ignore error
+          console.log('Upload directory already exists or created')
+        }
         
         await writeFile(filepath, buffer)
         galleryPaths.push(`/upload/products/${filename}`)

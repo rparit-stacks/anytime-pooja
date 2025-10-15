@@ -108,7 +108,13 @@ export async function sendWelcomeEmail(userEmail: string, userName: string): Pro
 export async function sendOrderConfirmationEmail(order: any, orderItems: any[]): Promise<boolean> {
   const subject = `Order Confirmation #${order.order_number}`
   const userName = order.first_name ? `${order.first_name} ${order.last_name}` : 'Customer'
-  const userEmail = order.email
+  const userEmail = order.email || order.billing_email || order.shipping_email
+  
+  // Validate email address
+  if (!userEmail) {
+    console.error('❌ No email address found in order data:', order)
+    return false
+  }
   
   const itemsHtml = orderItems.map(item => `
     <tr>

@@ -60,19 +60,24 @@ export default function PromoBannersPage() {
   }
 
   const handleSave = async (bannerData: Partial<PromoBanner>) => {
+    console.log('handleSave called with:', bannerData)
     setSaving(true)
     try {
       const formData = new FormData()
       
-      Object.entries(bannerData).forEach(([key, value]) => {
-        if (key !== 'banner_image' && value !== null) {
-          formData.append(key, value.toString())
-        }
-      })
+      // Add all form data
+      formData.append('banner_title', bannerData.banner_title || '')
+      formData.append('banner_description', bannerData.banner_description || '')
+      formData.append('button_text', bannerData.button_text || '')
+      formData.append('button_url', bannerData.button_url || '')
+      formData.append('banner_order', (bannerData.banner_order || 1).toString())
+      formData.append('is_active', (bannerData.is_active ?? true).toString())
 
+      // Handle image upload
       const bannerImage = document.getElementById('banner_image') as HTMLInputElement
       if (bannerImage?.files?.[0]) {
         formData.append('banner_image', bannerImage.files[0])
+        console.log('Image file added:', bannerImage.files[0].name)
       }
 
       const url = editingBanner 
@@ -81,18 +86,27 @@ export default function PromoBannersPage() {
       
       const method = editingBanner ? 'PUT' : 'POST'
 
+      console.log('Making API call:', { url, method })
+
       const response = await fetch(url, {
         method,
         body: formData
       })
+
+      console.log('API response:', response.status, response.statusText)
 
       if (response.ok) {
         toast.success(editingBanner ? 'Banner updated successfully' : 'Banner created successfully')
         await fetchBanners()
         setEditingBanner(null)
         setShowAddForm(false)
+        // Reset form
+        if (bannerImage) {
+          bannerImage.value = ''
+        }
       } else {
         const errorData = await response.json()
+        console.error('API Error:', errorData)
         toast.error(errorData.error || 'Failed to save banner')
       }
     } catch (error) {
@@ -171,6 +185,7 @@ export default function PromoBannersPage() {
         <Button 
           onClick={() => setShowAddForm(true)}
           className="flex items-center gap-2"
+          disabled={saving}
         >
           <FontAwesomeIcon icon={faPlus} className="h-4 w-4" />
           Add New Banner
@@ -189,7 +204,13 @@ export default function PromoBannersPage() {
                 onClick={() => {
                   setEditingBanner(null)
                   setShowAddForm(false)
+                  // Reset form
+                  const bannerImage = document.getElementById('banner_image') as HTMLInputElement
+                  if (bannerImage) {
+                    bannerImage.value = ''
+                  }
                 }}
+                disabled={saving}
               >
                 <FontAwesomeIcon icon={faTimes} className="h-4 w-4" />
               </Button>
@@ -197,16 +218,57 @@ export default function PromoBannersPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={(e) => {
+              console.log('Form submitted!')
               e.preventDefault()
               const formData = new FormData(e.currentTarget)
+              
+              // Validate required fields
+              const banner_title = formData.get('banner_title') as string
+              const banner_description = formData.get('banner_description') as string
+              const button_text = formData.get('button_text') as string
+              const button_url = formData.get('button_url') as string
+              
+              console.log('Form data:', {
+                banner_title,
+                banner_description,
+                button_text,
+                button_url,
+                editingBanner: editingBanner?.id
+              })
+              
+              if (!banner_title.trim()) {
+                toast.error('Banner title is required')
+                return
+              }
+              if (!banner_description.trim()) {
+                toast.error('Banner description is required')
+                return
+              }
+              if (!button_text.trim()) {
+                toast.error('Button text is required')
+                return
+              }
+              if (!button_url.trim()) {
+                toast.error('Button URL is required')
+                return
+              }
+              
+              // Validate URL format
+              if (!button_url.startsWith('/') && !button_url.startsWith('http')) {
+                toast.error('Button URL must start with / or http')
+                return
+              }
+              
               const bannerData = {
-                banner_title: formData.get('banner_title') as string,
-                banner_description: formData.get('banner_description') as string,
-                button_text: formData.get('button_text') as string,
-                button_url: formData.get('button_url') as string,
+                banner_title: banner_title.trim(),
+                banner_description: banner_description.trim(),
+                button_text: button_text.trim(),
+                button_url: button_url.trim(),
                 banner_order: parseInt(formData.get('banner_order') as string) || 1,
                 is_active: formData.get('is_active') === 'on'
               }
+              
+              console.log('Calling handleSave with:', bannerData)
               handleSave(bannerData)
             }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -216,8 +278,9 @@ export default function PromoBannersPage() {
                     id="banner_title"
                     name="banner_title"
                     defaultValue={editingBanner?.banner_title || ''}
-                    placeholder="New Fashion Collection"
+                    placeholder="Enter banner title"
                     required
+                    disabled={saving}
                   />
                 </div>
                 <div>
@@ -226,8 +289,9 @@ export default function PromoBannersPage() {
                     id="button_text"
                     name="button_text"
                     defaultValue={editingBanner?.button_text || ''}
-                    placeholder="Shop Fashion"
+                    placeholder="Enter button text"
                     required
+                    disabled={saving}
                   />
                 </div>
               </div>
@@ -238,9 +302,10 @@ export default function PromoBannersPage() {
                   id="banner_description"
                   name="banner_description"
                   defaultValue={editingBanner?.banner_description || ''}
-                  placeholder="Elevate your style with our latest arrivals"
+                  placeholder="Enter banner description"
                   rows={3}
                   required
+                  disabled={saving}
                 />
               </div>
 
@@ -251,8 +316,9 @@ export default function PromoBannersPage() {
                     id="button_url"
                     name="button_url"
                     defaultValue={editingBanner?.button_url || ''}
-                    placeholder="/products?category=fashion"
+                    placeholder="Enter button URL"
                     required
+                    disabled={saving}
                   />
                 </div>
                 <div>
@@ -264,21 +330,36 @@ export default function PromoBannersPage() {
                     defaultValue={editingBanner?.banner_order || 1}
                     min="1"
                     required
+                    disabled={saving}
                   />
                 </div>
               </div>
 
               <div>
                 <Label htmlFor="banner_image">Banner Image</Label>
+                {editingBanner?.banner_image && (
+                  <div className="mb-2">
+                    <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
+                    <img 
+                      src={editingBanner.banner_image} 
+                      alt="Current banner"
+                      className="w-32 h-20 object-cover rounded border"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder-banner.jpg'
+                      }}
+                    />
+                  </div>
+                )}
                 <Input
                   id="banner_image"
                   name="banner_image"
                   type="file"
                   accept="image/*"
                   className="mt-2"
+                  disabled={saving}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Upload a new image to replace the current one
+                  {editingBanner ? 'Upload a new image to replace the current one' : 'Upload banner image'}
                 </p>
               </div>
 
@@ -287,18 +368,22 @@ export default function PromoBannersPage() {
                   id="is_active"
                   name="is_active"
                   defaultChecked={editingBanner?.is_active ?? true}
+                  disabled={saving}
                 />
                 <Label htmlFor="is_active">Active</Label>
               </div>
 
-              <LoadingSaveButton 
+              <Button 
+                type="submit"
                 disabled={saving} 
                 className="w-full"
-                loadingText={editingBanner ? 'Updating...' : 'Creating...'}
+                onClick={() => {
+                  console.log('Button clicked!')
+                }}
               >
                 <FontAwesomeIcon icon={faSave} className="h-4 w-4 mr-2" />
                 {editingBanner ? 'Update Banner' : 'Create Banner'}
-              </LoadingSaveButton>
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -343,13 +428,18 @@ export default function PromoBannersPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setEditingBanner(banner)}
+                    onClick={() => {
+                      setEditingBanner(banner)
+                      setShowAddForm(false)
+                    }}
+                    disabled={saving}
                   >
                     <FontAwesomeIcon icon={faEdit} className="h-3 w-3" />
                   </Button>
                   <LoadingDeleteButton
                     size="sm"
                     onClick={() => handleDelete(banner.id)}
+                    disabled={saving}
                   >
                     <FontAwesomeIcon icon={faTrash} className="h-3 w-3" />
                   </LoadingDeleteButton>
@@ -368,7 +458,7 @@ export default function PromoBannersPage() {
             <p className="text-muted-foreground mb-4">
               Create your first promotional banner to showcase your products
             </p>
-            <Button onClick={() => setShowAddForm(true)}>
+            <Button onClick={() => setShowAddForm(true)} disabled={saving}>
               <FontAwesomeIcon icon={faPlus} className="h-4 w-4 mr-2" />
               Add First Banner
             </Button>

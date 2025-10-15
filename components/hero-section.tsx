@@ -7,6 +7,14 @@ import Link from "next/link"
 import useSWR from "swr"
 import { swrFetcher } from "@/lib/swr-config"
 
+interface Slide {
+  title: string
+  subtitle: string
+  cta: string
+  link: string
+  image: string
+}
+
 export function HeroSection() {
   const { data } = useSWR("/api/sliders", swrFetcher, {
     revalidateOnFocus: true,
@@ -37,7 +45,7 @@ export function HeroSection() {
     return () => clearInterval(timer)
   }, [apiSlides.length])
   
-  const slides = apiSlides.map((slide: any) => ({
+  const slides: Slide[] = apiSlides.map((slide: any) => ({
     title: slide.title,
     subtitle: slide.subtitle,
     cta: slide.cta,
@@ -59,7 +67,7 @@ export function HeroSection() {
 
   return (
     <section className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] overflow-hidden">
-      {slides.map((slide, index) => (
+      {slides.map((slide: Slide, index: number) => (
         <div
           key={index}
           className={`absolute inset-0 transition-opacity duration-1000 ${
@@ -67,7 +75,14 @@ export function HeroSection() {
           }`}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-background/80 to-background/20 z-10" />
-          <img src={slide.image || "/placeholder.svg"} alt={slide.title} className="w-full h-full object-cover" />
+          <img 
+            src={slide.image || "/placeholder-banner.jpg"} 
+            alt={slide.title} 
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = "/placeholder-banner.jpg"
+            }}
+          />
           <div className="absolute inset-0 z-20 flex items-center">
             <div className="container mx-auto px-4 lg:px-8">
               <div className="max-w-2xl">
@@ -111,7 +126,7 @@ export function HeroSection() {
 
       {/* Dots Indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-2">
-        {slides.map((_, index) => (
+        {slides.map((_: Slide, index: number) => (
           <button
             key={index}
             onClick={() => setCurrentSlide(index)}

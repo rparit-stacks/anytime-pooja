@@ -94,7 +94,29 @@ export async function POST(request: NextRequest) {
         // Send order confirmation email
         try {
           const { sendOrderConfirmationEmail } = await import('@/lib/smtp')
-          await sendOrderConfirmationEmail(order_data, order_data.items)
+          
+          // Create order object with email for email sending
+          const orderForEmail = {
+            ...order_data,
+            order_number: orderNumber,
+            email: billing.phone || order_data.email, // Use billing phone as email fallback
+            first_name: billing.first_name,
+            last_name: billing.last_name,
+            created_at: new Date().toISOString(),
+            payment_status: 'paid',
+            total_amount: order_data.total,
+            shipping_first_name: shipping.first_name,
+            shipping_last_name: shipping.last_name,
+            shipping_address_line_1: shipping.address_line_1,
+            shipping_address_line_2: shipping.address_line_2,
+            shipping_city: shipping.city,
+            shipping_state: shipping.state,
+            shipping_postal_code: shipping.postal_code,
+            shipping_country: shipping.country,
+            shipping_phone: shipping.phone
+          }
+          
+          await sendOrderConfirmationEmail(orderForEmail, order_data.items)
           console.log('Order confirmation email sent successfully')
         } catch (emailError) {
           console.error('Failed to send order confirmation email:', emailError)

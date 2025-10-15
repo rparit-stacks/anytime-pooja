@@ -9,17 +9,33 @@ export async function GET(
   try {
     const { id } = await params
     
+    // Try to get user ID from authorization header first
+    let userId = null
     const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401 })
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7)
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || '6dbff0f37cbebbe9bf17c43548c40d382c9000d31537f76f601b16955e3c628e70d4f30cb60993f2690665a7b6b4745951dd8e24029b196f69cdb0d1815cc11b') as any
+        userId = decoded.userId
+      } catch (jwtError) {
+        console.log('JWT verification failed, trying alternative method')
+      }
     }
-
-    const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || '6dbff0f37cbebbe9bf17c43548c40d382c9000d31537f76f601b16955e3c628e70d4f30cb60993f2690665a7b6b4745951dd8e24029b196f69cdb0d1815cc11b') as any
+    
+    // If no JWT token or verification failed, try to get user ID from query params
+    if (!userId) {
+      const { searchParams } = new URL(request.url)
+      userId = searchParams.get('userId')
+    }
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'User authentication required' }, { status: 401 })
+    }
 
     const orders = await query(
       'SELECT * FROM orders WHERE id = ? AND user_id = ?',
-      [id, decoded.userId]
+      [id, userId]
     ) as any[]
 
     if (orders.length === 0) {

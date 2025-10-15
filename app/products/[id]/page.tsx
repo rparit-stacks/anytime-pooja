@@ -218,7 +218,7 @@ export default function ProductDetailPage() {
             <div className="space-y-4">
               <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                 <ImageZoom
-                  src={product.gallery[selectedImage] || product.image}
+                  src={product.gallery[selectedImage] || product.image || "/placeholder.svg"}
                   alt={product.name}
                   className="w-full h-full"
                 />
@@ -272,9 +272,12 @@ export default function ProductDetailPage() {
                       }`}
                     >
                       <img
-                        src={image}
+                        src={image || "/placeholder.svg"}
                         alt={`${product.name} ${index + 1}`}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder.svg"
+                        }}
                       />
                     </button>
                   ))}

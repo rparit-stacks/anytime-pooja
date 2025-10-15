@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faPlus, faEdit, faTrash, faEye, faCheck, faTimes } from "@fortawesome/free-solid-svg-icons"
 import Link from "next/link"
@@ -27,6 +31,9 @@ export default function AdminCategoriesPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchCategories()
@@ -86,6 +93,56 @@ export default function AdminCategoriesPage() {
       setSelectedItems(prev => [...prev, categoryId])
     } else {
       setSelectedItems(prev => prev.filter(id => id !== categoryId))
+    }
+  }
+
+  const handleSave = async (categoryData: Partial<Category>) => {
+    setSaving(true)
+    try {
+      const formData = new FormData()
+      
+      // Add all form data
+      formData.append('name', categoryData.name || '')
+      formData.append('slug', categoryData.slug || '')
+      formData.append('description', categoryData.description || '')
+      formData.append('sortOrder', (categoryData.sortOrder || 1).toString())
+      formData.append('isActive', (categoryData.isActive ?? true).toString())
+
+      // Handle image upload
+      const categoryImage = document.getElementById('category_image') as HTMLInputElement
+      if (categoryImage?.files?.[0]) {
+        formData.append('image', categoryImage.files[0])
+      }
+
+      const url = editingCategory 
+        ? `/api/admin/categories/${editingCategory.id}`
+        : '/api/admin/categories'
+      
+      const method = editingCategory ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        body: formData
+      })
+
+      if (response.ok) {
+        alert(editingCategory ? 'Category updated successfully' : 'Category created successfully')
+        await fetchCategories()
+        setEditingCategory(null)
+        setShowAddForm(false)
+        // Reset form
+        if (categoryImage) {
+          categoryImage.value = ''
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to save category')
+      }
+    } catch (error) {
+      console.error('Error saving category:', error)
+      alert('Failed to save category')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -197,12 +254,10 @@ export default function AdminCategoriesPage() {
                   </Button>
                 </>
               )}
-              <Link href="/admin/categories/new">
-                <Button>
-                  <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
-                  Add New Category
-                </Button>
-              </Link>
+              <Button onClick={() => setShowAddForm(!showAddForm)}>
+                <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
+                {showAddForm ? 'Cancel' : 'Add New Category'}
+              </Button>
             </div>
           </div>
         </div>
@@ -272,11 +327,13 @@ export default function AdminCategoriesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/categories/${category.id}/edit`}>
-                            <Button variant="ghost" size="sm">
-                              <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setEditingCategory(category)}
+                          >
+                            <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
+                          </Button>
                           <Button 
                             variant="destructive" 
                             size="sm"
@@ -293,6 +350,133 @@ export default function AdminCategoriesPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Add/Edit Category Form */}
+        {(showAddForm || editingCategory) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                {editingCategory ? 'Edit Category' : 'Add New Category'}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditingCategory(null)
+                    setShowAddForm(false)
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTimes} className="h-4 w-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.currentTarget)
+                
+                const categoryData = {
+                  name: formData.get('name') as string,
+                  slug: formData.get('slug') as string,
+                  description: formData.get('description') as string,
+                  sortOrder: parseInt(formData.get('sortOrder') as string) || 1,
+                  isActive: formData.get('isActive') === 'on'
+                }
+                
+                handleSave(categoryData)
+              }} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Category Name</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={editingCategory?.name || ''}
+                      placeholder="Enter category name"
+                      required
+                      disabled={saving}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="slug">Slug</Label>
+                    <Input
+                      id="slug"
+                      name="slug"
+                      defaultValue={editingCategory?.slug || ''}
+                      placeholder="category-slug"
+                      required
+                      disabled={saving}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingCategory?.description || ''}
+                    placeholder="Enter category description"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="sortOrder">Sort Order</Label>
+                    <Input
+                      id="sortOrder"
+                      name="sortOrder"
+                      type="number"
+                      defaultValue={editingCategory?.sortOrder || 1}
+                      min="1"
+                      disabled={saving}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="isActive"
+                      name="isActive"
+                      defaultChecked={editingCategory?.isActive ?? true}
+                      disabled={saving}
+                    />
+                    <Label htmlFor="isActive">Active</Label>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="category_image">Category Image</Label>
+                  <Input
+                    id="category_image"
+                    name="category_image"
+                    type="file"
+                    accept="image/*"
+                    disabled={saving}
+                  />
+                  {editingCategory?.image && (
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
+                      <img 
+                        src={editingCategory.image} 
+                        alt="Current category"
+                        className="w-32 h-20 object-cover rounded border"
+                        onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit"
+                  disabled={saving} 
+                  className="w-full"
+                >
+                  <FontAwesomeIcon icon={faCheck} className="h-4 w-4 mr-2" />
+                  {editingCategory ? 'Update Category' : 'Create Category'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
     </div>
   )
 }

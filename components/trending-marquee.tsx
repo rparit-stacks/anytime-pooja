@@ -41,6 +41,9 @@ export function TrendingMarquee() {
                     alt={item.label}
                     className="w-full h-full object-cover"
                     crossOrigin="anonymous"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg"
+                    }}
                   />
                 </div>
                 <div className="p-3">

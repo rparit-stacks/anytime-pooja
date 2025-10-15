@@ -1,0 +1,26 @@
+# Database Configuration
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password_here
+DB_NAME=pandit_ecom
+DB_PORT=3306
+
+# Next.js Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret_here
+
+# SMTP Configuration (for email functionality)
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USERNAME=help@anytimepooja.in
+SMTP_PASSWORD=Anytimepooja@111288
+SMTP_FROM_NAME=Anytime Pooja
+SMTP_FROM_EMAIL=noreply@anytimepooja.com
+
+# Razorpay Configuration (for payments)
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+# JWT Secret
+JWT_SECRET=your_jwt_secret_here
