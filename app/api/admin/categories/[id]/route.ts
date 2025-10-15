@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
+import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -37,38 +36,52 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const formData = await request.formData()
+    const { id } = await params
     
     // Extract form data
     const name = formData.get('name') as string
     const slug = formData.get('slug') as string
     const description = formData.get('description') as string
     const sortOrder = parseInt(formData.get('sortOrder') as string) || 0
-    const isActive = formData.get('isActive') === 'true'
+    const isActive = formData.get('isActive') === 'true' || true // Default to true
+    
+    // Check for duplicate name (excluding current category)
+    const existingName = await query(
+      'SELECT id FROM categories WHERE name = ? AND id != ?',
+      [name, id]
+    ) as any[]
+    
+    if (existingName.length > 0) {
+      return NextResponse.json({ 
+        error: 'Category with this name already exists',
+        code: 'DUPLICATE_NAME'
+      }, { status: 400 })
+    }
+    
+    // Check for duplicate slug (excluding current category)
+    const existingSlug = await query(
+      'SELECT id FROM categories WHERE slug = ? AND id != ?',
+      [slug, id]
+    ) as any[]
+    
+    if (existingSlug.length > 0) {
+      return NextResponse.json({ 
+        error: 'Category with this slug already exists',
+        code: 'DUPLICATE_SLUG'
+      }, { status: 400 })
+    }
     
     // Handle image upload
     const image = formData.get('image') as File
     let imagePath = null
     
     if (image && image.size > 0) {
-      const bytes = await image.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      
-      // Generate unique filename
-      const timestamp = Date.now()
-      const filename = `${timestamp}-${image.name}`
-      const uploadDir = join(process.cwd(), 'public/upload/categories')
-      const filepath = join(uploadDir, filename)
-      
-      // Ensure upload directory exists
       try {
-        await mkdir(uploadDir, { recursive: true })
+        imagePath = await uploadToCloudinary(image, 'categories')
       } catch (error) {
-        // Directory might already exist, ignore error
-        console.log('Upload directory already exists or created')
+        console.error('Image upload failed:', error)
+        return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })
       }
-      
-      await writeFile(filepath, buffer)
-      imagePath = `/upload/categories/${filename}`
     }
 
     // Build update query
@@ -87,7 +100,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
         sql += ` WHERE id = ?`
-        const { id } = await params
         params_array.push(id)
     
     await query(sql, params_array)

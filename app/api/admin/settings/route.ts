@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
-import { writeFile } from "fs/promises"
-import { join } from "path"
+import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function GET() {
   try {
@@ -51,50 +50,42 @@ export async function POST(request: NextRequest) {
     if (category === 'logo') {
       const logoFile = formData.get('logo') as File
       if (logoFile && logoFile.size > 0) {
-        const bytes = await logoFile.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        const timestamp = Date.now()
-        const filename = `logo-${timestamp}.${logoFile.name.split('.').pop()}`
-        const filepath = join(process.cwd(), 'public/images', filename)
-        await writeFile(filepath, buffer)
-        fileUploads.logo_url = `/images/${filename}`
+        try {
+          fileUploads.logo_url = await uploadToCloudinary(logoFile, 'settings/logo')
+        } catch (error) {
+          console.error('Logo upload failed:', error)
+        }
       }
     }
     
     if (category === 'favicon') {
       const faviconFile = formData.get('favicon') as File
       if (faviconFile && faviconFile.size > 0) {
-        const bytes = await faviconFile.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        const timestamp = Date.now()
-        const filename = `favicon-${timestamp}.${faviconFile.name.split('.').pop()}`
-        const filepath = join(process.cwd(), 'public', filename)
-        await writeFile(filepath, buffer)
-        fileUploads.favicon_url = `/${filename}`
+        try {
+          fileUploads.favicon_url = await uploadToCloudinary(faviconFile, 'settings/favicon')
+        } catch (error) {
+          console.error('Favicon upload failed:', error)
+        }
       }
       
       const appleTouchIconFile = formData.get('apple_touch_icon') as File
       if (appleTouchIconFile && appleTouchIconFile.size > 0) {
-        const bytes = await appleTouchIconFile.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        const timestamp = Date.now()
-        const filename = `apple-touch-icon-${timestamp}.${appleTouchIconFile.name.split('.').pop()}`
-        const filepath = join(process.cwd(), 'public/images', filename)
-        await writeFile(filepath, buffer)
-        fileUploads.apple_touch_icon = `/images/${filename}`
+        try {
+          fileUploads.apple_touch_icon = await uploadToCloudinary(appleTouchIconFile, 'settings/icons')
+        } catch (error) {
+          console.error('Apple touch icon upload failed:', error)
+        }
       }
     }
     
     if (category === 'seo') {
       const ogImageFile = formData.get('og_image') as File
       if (ogImageFile && ogImageFile.size > 0) {
-        const bytes = await ogImageFile.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        const timestamp = Date.now()
-        const filename = `og-image-${timestamp}.${ogImageFile.name.split('.').pop()}`
-        const filepath = join(process.cwd(), 'public/images', filename)
-        await writeFile(filepath, buffer)
-        fileUploads.og_image = `/images/${filename}`
+        try {
+          fileUploads.og_image = await uploadToCloudinary(ogImageFile, 'settings/seo')
+        } catch (error) {
+          console.error('OG image upload failed:', error)
+        }
       }
     }
     

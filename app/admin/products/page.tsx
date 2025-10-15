@@ -10,25 +10,447 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { toast } from "sonner"
 import { Edit, Trash2, Plus, Search, Eye, Check, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
+// Product Form Component
+interface ProductFormProps {
+  onSave: (data: Partial<Product>) => void
+  onCancel: () => void
+  saving: boolean
+  generateSlug: (name: string) => string
+  editingProduct?: Product | null
+  categories: any[]
+}
+
+function ProductForm({ onSave, onCancel, saving, generateSlug, editingProduct, categories }: ProductFormProps) {
+  const [formData, setFormData] = useState({
+    name: editingProduct?.name || '',
+    slug: editingProduct?.slug || '',
+    description: editingProduct?.description || '',
+    shortDescription: editingProduct?.shortDescription || '',
+    price: editingProduct?.price || 0,
+    originalPrice: editingProduct?.originalPrice || 0,
+    category: editingProduct?.category || '',
+    badge: editingProduct?.badge || '',
+    stockQuantity: editingProduct?.stockQuantity || 0,
+    weight: editingProduct?.weight || 0,
+    dimensions: editingProduct?.dimensions || '',
+    material: editingProduct?.material || '',
+    origin: editingProduct?.origin || '',
+    isActive: editingProduct?.isActive ?? true,
+    isFeatured: editingProduct?.isFeatured ?? false
+  })
+
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([])
+
+  // Update form data when editingProduct changes
+  useEffect(() => {
+    if (editingProduct) {
+      setFormData({
+        name: editingProduct.name || '',
+        slug: editingProduct.slug || '',
+        description: editingProduct.description || '',
+        shortDescription: editingProduct.shortDescription || '',
+        price: editingProduct.price || 0,
+        originalPrice: editingProduct.originalPrice || 0,
+        category: editingProduct.category_id?.toString() || editingProduct.category || '',
+        badge: editingProduct.badge || '',
+        stockQuantity: editingProduct.stockQuantity || 0,
+        weight: editingProduct.weight || 0,
+        dimensions: editingProduct.dimensions || '',
+        material: editingProduct.material || '',
+        origin: editingProduct.origin || '',
+        isActive: editingProduct.isActive ?? true,
+        isFeatured: editingProduct.isFeatured ?? false
+      })
+    } else {
+      setFormData({
+        name: '',
+        slug: '',
+        description: '',
+        shortDescription: '',
+        price: 0,
+        originalPrice: 0,
+        category: '',
+        badge: '',
+        stockQuantity: 0,
+        weight: 0,
+        dimensions: '',
+        material: '',
+        origin: '',
+        isActive: true,
+        isFeatured: false
+      })
+    }
+  }, [editingProduct])
+
+  const handleNameChange = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      name,
+      slug: editingProduct ? prev.slug : generateSlug(name) // Only auto-generate for new products
+    }))
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const previews: string[] = []
+    
+    files.forEach((file) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        previews.push(e.target?.result as string)
+        if (previews.length === files.length) {
+          setGalleryPreviews(previews)
+        }
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave(formData)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium">Product Name *</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="Enter product name"
+            required
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="slug" className="text-sm font-medium">Slug *</Label>
+          <Input
+            id="slug"
+            value={formData.slug}
+            onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+            placeholder="product-slug"
+            required
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          placeholder="Enter product description"
+          disabled={saving}
+          className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="shortDescription" className="text-sm font-medium">Short Description</Label>
+        <Input
+          id="shortDescription"
+          value={formData.shortDescription}
+          onChange={(e) => setFormData(prev => ({ ...prev, shortDescription: e.target.value }))}
+          placeholder="Enter short description"
+          disabled={saving}
+          className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="price" className="text-sm font-medium">Price *</Label>
+          <Input
+            id="price"
+            type="number"
+            step="0.01"
+            value={formData.price}
+            onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+            placeholder="0.00"
+            required
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="originalPrice" className="text-sm font-medium">Original Price</Label>
+          <Input
+            id="originalPrice"
+            type="number"
+            step="0.01"
+            value={formData.originalPrice}
+            onChange={(e) => setFormData(prev => ({ ...prev, originalPrice: parseFloat(e.target.value) || 0 }))}
+            placeholder="0.00"
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="stockQuantity" className="text-sm font-medium">Stock Quantity</Label>
+          <Input
+            id="stockQuantity"
+            type="number"
+            value={formData.stockQuantity}
+            onChange={(e) => setFormData(prev => ({ ...prev, stockQuantity: parseInt(e.target.value) || 0 }))}
+            placeholder="0"
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="category" className="text-sm font-medium">Category *</Label>
+          <select
+            id="category"
+            value={formData.category}
+            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+            required
+            disabled={saving}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          >
+            <option value="">Select Category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="badge" className="text-sm font-medium">Badge</Label>
+          <Input
+            id="badge"
+            value={formData.badge}
+            onChange={(e) => setFormData(prev => ({ ...prev, badge: e.target.value }))}
+            placeholder="e.g., New, Sale, Featured"
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="weight">Weight (kg)</Label>
+          <Input
+            id="weight"
+            type="number"
+            step="0.01"
+            value={formData.weight}
+            onChange={(e) => setFormData(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
+            placeholder="0.00"
+            disabled={saving}
+          />
+        </div>
+        <div>
+          <Label htmlFor="dimensions">Dimensions</Label>
+          <Input
+            id="dimensions"
+            value={formData.dimensions}
+            onChange={(e) => setFormData(prev => ({ ...prev, dimensions: e.target.value }))}
+            placeholder="e.g., 10x10x5 cm"
+            disabled={saving}
+          />
+        </div>
+        <div>
+          <Label htmlFor="material">Material</Label>
+          <Input
+            id="material"
+            value={formData.material}
+            onChange={(e) => setFormData(prev => ({ ...prev, material: e.target.value }))}
+            placeholder="e.g., Brass, Wood"
+            disabled={saving}
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="origin">Origin</Label>
+        <Input
+          id="origin"
+          value={formData.origin}
+          onChange={(e) => setFormData(prev => ({ ...prev, origin: e.target.value }))}
+          placeholder="e.g., India, China"
+          disabled={saving}
+        />
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="isActive"
+            checked={formData.isActive}
+            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
+            disabled={saving}
+          />
+          <Label htmlFor="isActive">Active</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="isFeatured"
+            checked={formData.isFeatured}
+            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isFeatured: checked }))}
+            disabled={saving}
+          />
+          <Label htmlFor="isFeatured">Featured</Label>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="product_image">Product Image *</Label>
+        <Input
+          id="product_image"
+          name="product_image"
+          type="file"
+          accept="image/*"
+          required={!editingProduct}
+          disabled={saving}
+          onChange={handleImageChange}
+        />
+        {(imagePreview || editingProduct?.image) && (
+          <div className="mt-2">
+            <p className="text-sm text-muted-foreground mb-2">
+              {imagePreview ? 'New Image Preview:' : 'Current Image:'}
+            </p>
+            <img 
+              src={imagePreview || editingProduct?.image} 
+              alt="Product preview"
+              className="w-32 h-20 object-cover rounded border"
+              onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="gallery_images">Gallery Images (Multiple)</Label>
+        <Input
+          id="gallery_images"
+          name="gallery_images"
+          type="file"
+          accept="image/*"
+          multiple
+          disabled={saving}
+          onChange={handleGalleryChange}
+        />
+        {(galleryPreviews.length > 0 || (editingProduct?.gallery && editingProduct.gallery.length > 0)) && (
+          <div className="mt-2">
+            <p className="text-sm text-muted-foreground mb-2">
+              {galleryPreviews.length > 0 ? 'New Gallery Preview:' : 'Current Gallery:'}
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {galleryPreviews.length > 0 ? (
+                galleryPreviews.map((preview, index) => (
+                  <img 
+                    key={`new-${index}`}
+                    src={preview} 
+                    alt={`New gallery ${index + 1}`}
+                    className="w-20 h-20 object-cover rounded border"
+                    onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
+                  />
+                ))
+              ) : (
+                editingProduct?.gallery?.map((img: string, index: number) => (
+                  <img 
+                    key={`current-${index}`}
+                    src={img} 
+                    alt={`Gallery ${index + 1}`}
+                    className="w-20 h-20 object-cover rounded border"
+                    onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 pt-4">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={saving}
+          className="transition-all duration-200 hover:bg-gray-50"
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={saving}
+          className="transition-all duration-200 hover:bg-blue-600 min-w-[140px]"
+        >
+          {saving ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Processing...
+            </div>
+          ) : (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              {editingProduct ? 'Update Product' : 'Create Product'}
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 interface Product {
   id: string
   name: string
+  slug: string
+  description?: string
+  shortDescription?: string
   price: number
   originalPrice?: number
   image: string
+  gallery?: string[]
+  category: string
+  category_id?: number
+  stockQuantity?: number
+  weight?: number
+  dimensions?: string
+  material?: string
+  origin?: string
   rating: number
   reviews: number
-  category: string
   badge?: string
   isActive: boolean
+  isFeatured?: boolean
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedItems, setSelectedItems] = useState<string[]>([])
@@ -37,9 +459,30 @@ export default function ProductsPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // Auto-generate slug from name
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim()
+  }
+
   useEffect(() => {
     fetchProducts()
+    fetchCategories()
   }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/admin/categories')
+      const data = await response.json()
+      setCategories(data.categories || [])
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
 
   const fetchProducts = async () => {
     try {
@@ -88,16 +531,33 @@ export default function ProductsPage() {
       
       // Add all form data
       formData.append('name', productData.name || '')
+      formData.append('slug', productData.slug || '')
+      formData.append('description', productData.description || '')
+      formData.append('short_description', productData.shortDescription || '')
       formData.append('price', (productData.price || 0).toString())
-      formData.append('originalPrice', (productData.originalPrice || 0).toString())
-      formData.append('category', productData.category || '')
+      formData.append('original_price', (productData.originalPrice || 0).toString())
+      formData.append('category_id', productData.category || '')
       formData.append('badge', productData.badge || '')
-      formData.append('isActive', (productData.isActive ?? true).toString())
+      formData.append('stock_quantity', (productData.stockQuantity || 0).toString())
+      formData.append('weight', (productData.weight || 0).toString())
+      formData.append('dimensions', productData.dimensions || '')
+      formData.append('material', productData.material || '')
+      formData.append('origin', productData.origin || '')
+      formData.append('is_active', (productData.isActive ?? true).toString())
+      formData.append('is_featured', (productData.isFeatured ?? false).toString())
 
-      // Handle image upload
+      // Handle main image upload
       const productImage = document.getElementById('product_image') as HTMLInputElement
       if (productImage?.files?.[0]) {
         formData.append('image', productImage.files[0])
+      }
+
+      // Handle gallery images
+      const galleryImages = document.getElementById('gallery_images') as HTMLInputElement
+      if (galleryImages?.files) {
+        for (let i = 0; i < galleryImages.files.length; i++) {
+          formData.append('gallery', galleryImages.files[i])
+        }
       }
 
       const url = editingProduct 
@@ -112,7 +572,7 @@ export default function ProductsPage() {
       })
 
       if (response.ok) {
-        alert(editingProduct ? 'Product updated successfully' : 'Product created successfully')
+        toast.success(editingProduct ? 'Product updated successfully!' : 'Product created successfully!')
         await fetchProducts()
         setEditingProduct(null)
         setShowAddForm(false)
@@ -120,9 +580,24 @@ export default function ProductsPage() {
         if (productImage) {
           productImage.value = ''
         }
+        if (galleryImages) {
+          galleryImages.value = ''
+        }
       } else {
         const errorData = await response.json()
-        alert(errorData.error || 'Failed to save product')
+        if (errorData.code === 'DUPLICATE_NAME') {
+          toast.error('Product with this name already exists. Please choose a different name.')
+        } else if (errorData.code === 'DUPLICATE_SLUG') {
+          toast.error('Product with this slug already exists. Please choose a different slug.')
+        } else if (errorData.code === 'MISSING_CATEGORY') {
+          toast.error('Please select a category for the product.')
+        } else if (errorData.code === 'MISSING_NAME') {
+          toast.error('Product name is required.')
+        } else if (errorData.code === 'INVALID_PRICE') {
+          toast.error('Please enter a valid price greater than 0.')
+        } else {
+          toast.error(errorData.error || 'Failed to save product')
+        }
       }
     } catch (error) {
       console.error('Error saving product:', error)
@@ -233,13 +708,26 @@ export default function ProductsPage() {
                   </Button>
                 </>
               )}
-              <Button 
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {showAddForm ? 'Cancel' : 'Add Product'}
-              </Button>
+              <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Product
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-semibold">Add New Product</DialogTitle>
+                  </DialogHeader>
+                  <ProductForm 
+                    onSave={handleSave}
+                    onCancel={() => setShowAddForm(false)}
+                    saving={saving}
+                    generateSlug={generateSlug}
+                    categories={categories}
+                  />
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -342,13 +830,26 @@ export default function ProductsPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setEditingProduct(product)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle className="text-xl font-semibold">Edit Product</DialogTitle>
+                              </DialogHeader>
+                              <ProductForm 
+                                onSave={handleSave}
+                                onCancel={() => setEditingProduct(null)}
+                                saving={saving}
+                                generateSlug={generateSlug}
+                                editingProduct={product}
+                                categories={categories}
+                              />
+                            </DialogContent>
+                          </Dialog>
                           <Button variant="ghost" size="sm" className="text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -362,149 +863,6 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        {/* Add/Edit Product Form */}
-        {(showAddForm || editingProduct) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {editingProduct ? 'Edit Product' : 'Add New Product'}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingProduct(null)
-                    setShowAddForm(false)
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                
-                const productData = {
-                  name: formData.get('name') as string,
-                  price: parseFloat(formData.get('price') as string) || 0,
-                  originalPrice: parseFloat(formData.get('originalPrice') as string) || 0,
-                  category: formData.get('category') as string,
-                  badge: formData.get('badge') as string,
-                  isActive: formData.get('isActive') === 'on'
-                }
-                
-                handleSave(productData)
-              }} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Product Name</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      defaultValue={editingProduct?.name || ''}
-                      placeholder="Enter product name"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
-                      name="category"
-                      defaultValue={editingProduct?.category || ''}
-                      placeholder="Enter category"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="price">Price</Label>
-                    <Input
-                      id="price"
-                      name="price"
-                      type="number"
-                      step="0.01"
-                      defaultValue={editingProduct?.price || ''}
-                      placeholder="0.00"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="originalPrice">Original Price (Optional)</Label>
-                    <Input
-                      id="originalPrice"
-                      name="originalPrice"
-                      type="number"
-                      step="0.01"
-                      defaultValue={editingProduct?.originalPrice || ''}
-                      placeholder="0.00"
-                      disabled={saving}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="badge">Badge (Optional)</Label>
-                    <Input
-                      id="badge"
-                      name="badge"
-                      defaultValue={editingProduct?.badge || ''}
-                      placeholder="e.g., New, Sale, Featured"
-                      disabled={saving}
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="isActive"
-                      name="isActive"
-                      defaultChecked={editingProduct?.isActive ?? true}
-                      disabled={saving}
-                    />
-                    <Label htmlFor="isActive">Active</Label>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="product_image">Product Image</Label>
-                  <Input
-                    id="product_image"
-                    name="product_image"
-                    type="file"
-                    accept="image/*"
-                    disabled={saving}
-                  />
-                  {editingProduct?.image && (
-                    <div className="mt-2">
-                      <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
-                      <img 
-                        src={editingProduct.image} 
-                        alt="Current product"
-                        className="w-32 h-20 object-cover rounded border"
-                        onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <Button 
-                  type="submit"
-                  disabled={saving} 
-                  className="w-full"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  {editingProduct ? 'Update Product' : 'Create Product'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
     </div>
   )
 }

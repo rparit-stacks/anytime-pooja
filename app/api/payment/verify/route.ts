@@ -99,7 +99,9 @@ export async function POST(request: NextRequest) {
           const orderForEmail = {
             ...order_data,
             order_number: orderNumber,
-            email: billing.phone || order_data.email, // Use billing phone as email fallback
+            email: order_data.email || billing.email, // Use proper email field
+            billing_email: billing.email,
+            shipping_email: shipping.email,
             first_name: billing.first_name,
             last_name: billing.last_name,
             created_at: new Date().toISOString(),
@@ -115,6 +117,13 @@ export async function POST(request: NextRequest) {
             shipping_country: shipping.country,
             shipping_phone: shipping.phone
           }
+          
+          console.log('Order data for email:', {
+            email: orderForEmail.email,
+            billing_email: orderForEmail.billing_email,
+            shipping_email: orderForEmail.shipping_email,
+            order_number: orderForEmail.order_number
+          })
           
           await sendOrderConfirmationEmail(orderForEmail, order_data.items)
           console.log('Order confirmation email sent successfully')

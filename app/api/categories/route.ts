@@ -17,6 +17,7 @@ export async function GET() {
     `
     
     const categories = await queryDirect(sql) as any[]
+    console.log('Categories API: Found categories:', categories.length, categories)
     const response = NextResponse.json({ categories })
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')

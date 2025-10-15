@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
+import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -52,25 +51,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     let imagePath = null
     
     if (image && image.size > 0) {
-      const bytes = await image.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      
-      // Generate unique filename
-      const timestamp = Date.now()
-      const filename = `${timestamp}-${image.name}`
-      const uploadDir = join(process.cwd(), 'public/upload/sliders')
-      const filepath = join(uploadDir, filename)
-      
-      // Ensure upload directory exists
       try {
-        await mkdir(uploadDir, { recursive: true })
+        imagePath = await uploadToCloudinary(image, 'sliders')
       } catch (error) {
-        // Directory might already exist, ignore error
-        console.log('Upload directory already exists or created')
+        console.error('Image upload failed:', error)
+        return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })
       }
-      
-      await writeFile(filepath, buffer)
-      imagePath = `/upload/sliders/${filename}`
     }
 
     // Build update query

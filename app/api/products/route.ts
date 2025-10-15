@@ -7,6 +7,8 @@ export async function GET(req: Request) {
     const category = url.searchParams.get("category")
     const q = url.searchParams.get("q")
 
+    console.log('Products API called with params:', { category, q })
+
     let sql = `
       SELECT 
         p.id,
@@ -25,7 +27,8 @@ export async function GET(req: Request) {
         p.material,
         p.origin,
         p.weight,
-        p.dimensions
+        p.dimensions,
+        p.gallery
       FROM products p
       JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = 1
@@ -48,6 +51,7 @@ export async function GET(req: Request) {
     sql += ` ORDER BY p.is_featured DESC, p.created_at DESC`
 
     const products = await queryDirect(sql, params) as any[]
+    console.log('Raw products from database:', products.length, products)
 
     // Transform the data to match the exact same format as mock data
     const transformedProducts = products.map((product: any) => ({
@@ -67,9 +71,18 @@ export async function GET(req: Request) {
       material: product.material,
       origin: product.origin,
       weight: product.weight,
-      dimensions: product.dimensions
+      dimensions: product.dimensions,
+      gallery: product.gallery ? (() => {
+        try {
+          return JSON.parse(product.gallery)
+        } catch (error) {
+          console.error('Error parsing gallery JSON:', error, 'Raw data:', product.gallery)
+          return null
+        }
+      })() : null
     }))
 
+    console.log('Transformed products:', transformedProducts.length, transformedProducts)
     const response = NextResponse.json({ products: transformedProducts })
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')

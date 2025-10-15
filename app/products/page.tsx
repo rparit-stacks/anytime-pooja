@@ -21,8 +21,16 @@ export default function ProductsPage() {
   const searchParams = useSearchParams()
   const categoryParam = searchParams.get("category") || "all"
 
-  const { data: productsData } = useSWR("/api/products", swrFetcher)
-  const { data: categoriesData } = useSWR("/api/categories", swrFetcher)
+  const { data: productsData, error: productsError } = useSWR("/api/products", swrFetcher)
+  const { data: categoriesData, error: categoriesError } = useSWR("/api/categories", swrFetcher)
+  
+  console.log('Products page data:', {
+    productsData,
+    productsError,
+    categoriesData,
+    categoriesError,
+    categoryParam
+  })
   
   const allProducts = (productsData?.products || []).map((p: any) => ({
     id: p.id,
@@ -80,6 +88,14 @@ export default function ProductsPage() {
         break
     }
 
+    console.log('Filtered products:', {
+      allProducts: allProducts.length,
+      filtered: filtered.length,
+      selectedCategories,
+      priceRange,
+      sortBy
+    })
+    
     return sorted
   }, [selectedCategories, priceRange, sortBy])
 

@@ -4,6 +4,8 @@ import { queryDirect } from "@/lib/database"
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    console.log('Looking for product ID:', id)
+    
     const sql = `
       SELECT 
         p.id,
@@ -29,8 +31,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     `
     
     const products = await queryDirect(sql, [id]) as any[]
+    console.log('Found products:', products.length, products)
     
     if (products.length === 0) {
+      // Check if product exists but is inactive
+      const checkSql = `SELECT id, name, is_active FROM products WHERE id = ?`
+      const checkProducts = await queryDirect(checkSql, [id]) as any[]
+      console.log('Product check (including inactive):', checkProducts)
+      
       return NextResponse.json({ error: "Product not found" }, { status: 404 })
     }
 
@@ -49,7 +57,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       badge: product.badge,
       description: product.description,
       shortDescription: product.short_description,
-      gallery: product.gallery ? JSON.parse(product.gallery) : null,
+      gallery: product.gallery ? (() => {
+        try {
+          return JSON.parse(product.gallery)
+        } catch (error) {
+          console.error('Error parsing gallery JSON:', error, 'Raw data:', product.gallery)
+          return null
+        }
+      })() : null,
       stockQuantity: product.stock_quantity,
       material: product.material,
       origin: product.origin,

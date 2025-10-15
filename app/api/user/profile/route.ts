@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 import jwt from "jsonwebtoken"
-import { writeFile } from 'fs/promises'
-import { join } from 'path'
+import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function PUT(request: NextRequest) {
   try {
@@ -104,21 +103,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Profile image is required' }, { status: 400 })
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'public/upload/profiles')
+    // Upload to Cloudinary
+    let profileImagePath = ''
     try {
-      await import('fs').then(fs => fs.promises.mkdir(uploadDir, { recursive: true }))
-    } catch (e) {
-      // Directory already exists
+      profileImagePath = await uploadToCloudinary(profileImage, 'profiles')
+    } catch (error) {
+      console.error('Profile image upload failed:', error)
+      return NextResponse.json({ error: 'Failed to upload profile image' }, { status: 500 })
     }
-
-    const bytes = await profileImage.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const timestamp = Date.now()
-    const filename = `${timestamp}-${profileImage.name}`
-    const filepath = join(uploadDir, filename)
-    await writeFile(filepath, buffer)
-    const profileImagePath = `/upload/profiles/${filename}`
 
     // Update user profile image
     await query(

@@ -22,6 +22,12 @@ interface SMTPConfig {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
+    console.log('SendEmail called with options:', {
+      to: options.to,
+      subject: options.subject,
+      from: options.from
+    })
+    
     // Use SMTP credentials from environment variables
     const smtpConfig = {
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -36,6 +42,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // Validate required SMTP configuration
     if (!smtpConfig.auth.user || !smtpConfig.auth.pass) {
       console.error('❌ SMTP credentials not configured properly')
+      return false
+    }
+    
+    // Validate email recipients
+    if (!options.to || (Array.isArray(options.to) && options.to.length === 0)) {
+      console.error('❌ No recipients defined:', options.to)
       return false
     }
 
@@ -109,6 +121,15 @@ export async function sendOrderConfirmationEmail(order: any, orderItems: any[]):
   const subject = `Order Confirmation #${order.order_number}`
   const userName = order.first_name ? `${order.first_name} ${order.last_name}` : 'Customer'
   const userEmail = order.email || order.billing_email || order.shipping_email
+  
+  console.log('Email sending attempt:', {
+    order_number: order.order_number,
+    userEmail,
+    email: order.email,
+    billing_email: order.billing_email,
+    shipping_email: order.shipping_email,
+    userName
+  })
   
   // Validate email address
   if (!userEmail) {

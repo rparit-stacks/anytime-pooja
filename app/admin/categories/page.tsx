@@ -10,9 +10,188 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { toast } from "sonner"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faPlus, faEdit, faTrash, faEye, faCheck, faTimes } from "@fortawesome/free-solid-svg-icons"
 import Link from "next/link"
+
+// Category Form Component
+interface CategoryFormProps {
+  onSave: (data: Partial<Category>) => void
+  onCancel: () => void
+  saving: boolean
+  generateSlug: (name: string) => string
+  editingCategory?: Category | null
+}
+
+function CategoryForm({ onSave, onCancel, saving, generateSlug, editingCategory }: CategoryFormProps) {
+  const [formData, setFormData] = useState({
+    name: editingCategory?.name || '',
+    slug: editingCategory?.slug || '',
+    description: editingCategory?.description || '',
+    sortOrder: editingCategory?.sortOrder || 0, // 0 means auto-assign
+    isActive: editingCategory?.isActive ?? true
+  })
+
+  // Update form data when editingCategory changes
+  useEffect(() => {
+    if (editingCategory) {
+      setFormData({
+        name: editingCategory.name || '',
+        slug: editingCategory.slug || '',
+        description: editingCategory.description || '',
+        sortOrder: editingCategory.sortOrder || 0,
+        isActive: editingCategory.isActive ?? true
+      })
+    } else {
+      setFormData({
+        name: '',
+        slug: '',
+        description: '',
+        sortOrder: 0,
+        isActive: true
+      })
+    }
+  }, [editingCategory])
+
+  const handleNameChange = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      name,
+      slug: editingCategory ? prev.slug : generateSlug(name) // Only auto-generate for new categories
+    }))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave(formData)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium">Category Name *</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="Enter category name"
+            required
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="slug" className="text-sm font-medium">Slug *</Label>
+          <Input
+            id="slug"
+            value={formData.slug}
+            onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+            placeholder="category-slug"
+            required
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          placeholder="Enter category description"
+          disabled={saving}
+          className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="sortOrder" className="text-sm font-medium">Sort Order</Label>
+          <Input
+            id="sortOrder"
+            type="number"
+            value={formData.sortOrder || ''}
+            onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+            placeholder={editingCategory ? "Current: " + editingCategory.sortOrder : "Auto-assign"}
+            min="0"
+            disabled={saving}
+            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-muted-foreground">
+            Leave empty or 0 for auto-assignment
+          </p>
+        </div>
+        <div className="flex items-center space-x-3 pt-6">
+          <Switch
+            id="isActive"
+            checked={formData.isActive}
+            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
+            disabled={saving}
+            className="transition-all duration-200"
+          />
+          <Label htmlFor="isActive" className="text-sm font-medium">Active Status</Label>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="category_image" className="text-sm font-medium">Category Image</Label>
+        <Input
+          id="category_image"
+          name="category_image"
+          type="file"
+          accept="image/*"
+          disabled={saving}
+          className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+        />
+        {editingCategory?.image && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+            <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
+            <img 
+              src={editingCategory.image} 
+              alt="Current category"
+              className="w-40 h-24 object-cover rounded border shadow-sm"
+              onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 pt-4">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={saving}
+          className="transition-all duration-200 hover:bg-gray-50"
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={saving}
+          className="transition-all duration-200 hover:bg-blue-600 min-w-[140px]"
+        >
+          {saving ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Processing...
+            </div>
+          ) : (
+            <>
+              <FontAwesomeIcon icon={faCheck} className="h-4 w-4 mr-2" />
+              {editingCategory ? 'Update Category' : 'Create Category'}
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  )
+}
 
 interface Category {
   id: string
@@ -34,6 +213,16 @@ export default function AdminCategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Auto-generate slug from name
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim()
+  }
 
   useEffect(() => {
     fetchCategories()
@@ -105,7 +294,7 @@ export default function AdminCategoriesPage() {
       formData.append('name', categoryData.name || '')
       formData.append('slug', categoryData.slug || '')
       formData.append('description', categoryData.description || '')
-      formData.append('sortOrder', (categoryData.sortOrder || 1).toString())
+      formData.append('sortOrder', (categoryData.sortOrder || 0).toString())
       formData.append('isActive', (categoryData.isActive ?? true).toString())
 
       // Handle image upload
@@ -126,7 +315,7 @@ export default function AdminCategoriesPage() {
       })
 
       if (response.ok) {
-        alert(editingCategory ? 'Category updated successfully' : 'Category created successfully')
+        toast.success(editingCategory ? 'Category updated successfully!' : 'Category created successfully!')
         await fetchCategories()
         setEditingCategory(null)
         setShowAddForm(false)
@@ -136,7 +325,13 @@ export default function AdminCategoriesPage() {
         }
       } else {
         const errorData = await response.json()
-        alert(errorData.error || 'Failed to save category')
+        if (errorData.code === 'DUPLICATE_NAME') {
+          toast.error('Category with this name already exists. Please choose a different name.')
+        } else if (errorData.code === 'DUPLICATE_SLUG') {
+          toast.error('Category with this slug already exists. Please choose a different slug.')
+        } else {
+          toast.error(errorData.error || 'Failed to save category')
+        }
       }
     } catch (error) {
       console.error('Error saving category:', error)
@@ -254,10 +449,25 @@ export default function AdminCategoriesPage() {
                   </Button>
                 </>
               )}
-              <Button onClick={() => setShowAddForm(!showAddForm)}>
-                <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
-                {showAddForm ? 'Cancel' : 'Add New Category'}
-              </Button>
+              <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
+                    Add New Category
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-semibold">Add New Category</DialogTitle>
+                  </DialogHeader>
+                  <CategoryForm 
+                    onSave={handleSave}
+                    onCancel={() => setShowAddForm(false)}
+                    saving={saving}
+                    generateSlug={generateSlug}
+                  />
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
@@ -327,13 +537,25 @@ export default function AdminCategoriesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setEditingCategory(category)}
-                          >
-                            <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle className="text-xl font-semibold">Edit Category</DialogTitle>
+                              </DialogHeader>
+                              <CategoryForm 
+                                onSave={handleSave}
+                                onCancel={() => setEditingCategory(null)}
+                                saving={saving}
+                                generateSlug={generateSlug}
+                                editingCategory={category}
+                              />
+                            </DialogContent>
+                          </Dialog>
                           <Button 
                             variant="destructive" 
                             size="sm"
@@ -351,132 +573,6 @@ export default function AdminCategoriesPage() {
           </CardContent>
         </Card>
 
-        {/* Add/Edit Category Form */}
-        {(showAddForm || editingCategory) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {editingCategory ? 'Edit Category' : 'Add New Category'}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingCategory(null)
-                    setShowAddForm(false)
-                  }}
-                >
-                  <FontAwesomeIcon icon={faTimes} className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                
-                const categoryData = {
-                  name: formData.get('name') as string,
-                  slug: formData.get('slug') as string,
-                  description: formData.get('description') as string,
-                  sortOrder: parseInt(formData.get('sortOrder') as string) || 1,
-                  isActive: formData.get('isActive') === 'on'
-                }
-                
-                handleSave(categoryData)
-              }} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Category Name</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      defaultValue={editingCategory?.name || ''}
-                      placeholder="Enter category name"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="slug">Slug</Label>
-                    <Input
-                      id="slug"
-                      name="slug"
-                      defaultValue={editingCategory?.slug || ''}
-                      placeholder="category-slug"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    defaultValue={editingCategory?.description || ''}
-                    placeholder="Enter category description"
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="sortOrder">Sort Order</Label>
-                    <Input
-                      id="sortOrder"
-                      name="sortOrder"
-                      type="number"
-                      defaultValue={editingCategory?.sortOrder || 1}
-                      min="1"
-                      disabled={saving}
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="isActive"
-                      name="isActive"
-                      defaultChecked={editingCategory?.isActive ?? true}
-                      disabled={saving}
-                    />
-                    <Label htmlFor="isActive">Active</Label>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="category_image">Category Image</Label>
-                  <Input
-                    id="category_image"
-                    name="category_image"
-                    type="file"
-                    accept="image/*"
-                    disabled={saving}
-                  />
-                  {editingCategory?.image && (
-                    <div className="mt-2">
-                      <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
-                      <img 
-                        src={editingCategory.image} 
-                        alt="Current category"
-                        className="w-32 h-20 object-cover rounded border"
-                        onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <Button 
-                  type="submit"
-                  disabled={saving} 
-                  className="w-full"
-                >
-                  <FontAwesomeIcon icon={faCheck} className="h-4 w-4 mr-2" />
-                  {editingCategory ? 'Update Category' : 'Create Category'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
     </div>
   )
 }
