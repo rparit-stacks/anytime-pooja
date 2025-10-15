@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { queryDirectWithFallback } from "@/lib/database"
+import { queryDirect } from "@/lib/database-postgres"
 
 export async function GET(req: Request) {
   try {
@@ -38,19 +38,19 @@ export async function GET(req: Request) {
 
     // Filter by category
     if (category) {
-      sql += ` AND c.slug = ?`
+      sql += ` AND c.slug = $${params.length + 1}`
       params.push(category)
     }
 
     // Search by name
     if (q) {
-      sql += ` AND p.name LIKE ?`
+      sql += ` AND p.name LIKE $${params.length + 1}`
       params.push(`%${q}%`)
     }
 
     sql += ` ORDER BY p.is_featured DESC, p.created_at DESC`
 
-    const products = await queryDirectWithFallback(sql, params) as any[]
+    const products = await queryDirect(sql, params) as any[]
     console.log('Raw products from database:', products.length, products)
 
     // Transform the data to match the exact same format as mock data

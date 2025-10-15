@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { queryDirect } from "@/lib/database"
+import { queryDirect } from "@/lib/database-postgres"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -27,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         p.dimensions
       FROM products p
       JOIN categories c ON p.category_id = c.id
-      WHERE p.id = ? AND p.is_active = true
+      WHERE p.id = $1 AND p.is_active = true
     `
     
     const products = await queryDirect(sql, [id]) as any[]
@@ -35,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     
     if (products.length === 0) {
       // Check if product exists but is inactive
-      const checkSql = `SELECT id, name, is_active FROM products WHERE id = ?`
+      const checkSql = `SELECT id, name, is_active FROM products WHERE id = $1`
       const checkProducts = await queryDirect(checkSql, [id]) as any[]
       console.log('Product check (including inactive):', checkProducts)
       
