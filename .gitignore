@@ -129,3 +129,4 @@ env-supabase.txt
 # Scripts
 *.bat
 *.sh
+.vercel
