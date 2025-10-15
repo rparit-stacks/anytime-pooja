@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const { email, purpose = 'registration' } = await request.json()
 
+    
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user exists for login purpose
     if (purpose === 'login') {
-      const users = await query('SELECT id FROM users WHERE email = ?', [email]) as any[]
+      const users = await query('SELECT id FROM users WHERE email = $1', [email]) as any[]
       if (users.length === 0) {
         return NextResponse.json({ error: 'User not found with this email' }, { status: 404 })
       }
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists for registration purpose
     if (purpose === 'registration') {
-      const users = await query('SELECT id FROM users WHERE email = ?', [email]) as any[]
+      const users = await query('SELECT id FROM users WHERE email = $1', [email]) as any[]
       if (users.length > 0) {
         return NextResponse.json({ error: 'User already exists with this email' }, { status: 400 })
       }
@@ -40,13 +41,13 @@ export async function POST(request: NextRequest) {
 
     // Delete any existing OTP for this email and purpose
     await query(
-      'DELETE FROM otp_verification WHERE email = ? AND purpose = ?',
+      'DELETE FROM otp_verification WHERE email = $1 AND purpose = $2',
       [email, purpose]
     )
 
     // Store OTP in database
     await query(
-      'INSERT INTO otp_verification (email, otp_code, purpose, expires_at) VALUES (?, ?, ?, ?)',
+      'INSERT INTO otp_verification (email, otp_code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
       [email, otpCode, purpose, expiresAt]
     )
 

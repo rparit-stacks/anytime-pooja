@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     // Find OTP in database
     const otpRecords = await query(
-      'SELECT * FROM otp_verification WHERE email = ? AND purpose = ? AND is_verified = false ORDER BY created_at DESC LIMIT 1',
+      'SELECT * FROM otp_verification WHERE email = $1 AND purpose = $2 AND is_verified = false ORDER BY created_at DESC LIMIT 1',
       [email, purpose]
     ) as any[]
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Mark OTP as verified
     await query(
-      'UPDATE otp_verification SET is_verified = true WHERE id = ?',
+      'UPDATE otp_verification SET is_verified = true WHERE id = $1',
       [otpRecord.id]
     )
 
@@ -52,11 +52,11 @@ export async function POST(request: NextRequest) {
       // Create user
       const result = await query(
         `INSERT INTO users (first_name, last_name, email, phone, password_hash, is_active, email_verified) 
-         VALUES (?, ?, ?, ?, ?, 1, 1)`,
+         VALUES ($1, $2, $3, $4, $5, true, true) RETURNING id`,
         [userData.firstName, userData.lastName, email, userData.phone || null, passwordHash]
-      ) as any
+      ) as any[]
 
-      const userId = result.insertId
+      const userId = result[0]?.id
 
       // Generate JWT token
       const token = jwt.sign(
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     if (purpose === 'login') {
       // Get user data
       const users = await query(
-        'SELECT id, first_name, last_name, email, phone, is_active, email_verified FROM users WHERE email = ?',
+        'SELECT id, first_name, last_name, email, phone, is_active, email_verified FROM users WHERE email = $1',
         [email]
       ) as any[]
 
