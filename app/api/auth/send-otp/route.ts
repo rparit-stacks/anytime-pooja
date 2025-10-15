@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
-import { sendOTPEmail } from "@/lib/smtp-simple"
+import { sendOTPEmail } from "@/lib/smtp"
 
 export async function POST(request: NextRequest) {
   try {
