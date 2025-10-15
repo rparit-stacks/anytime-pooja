@@ -39,6 +39,8 @@ export function HeroSection() {
   }, [])
 
   useEffect(() => {
+    if (apiSlides.length === 0) return
+    
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % apiSlides.length)
     }, 5000)
@@ -46,11 +48,11 @@ export function HeroSection() {
   }, [apiSlides.length])
   
   const slides: Slide[] = apiSlides.map((slide: any) => ({
-    title: slide.title,
-    subtitle: slide.subtitle,
-    cta: slide.cta,
-    link: slide.link,
-    image: slide.image,
+    title: slide.title || "Welcome",
+    subtitle: slide.subtitle || "Discover our collection",
+    cta: slide.cta || "Shop Now",
+    link: slide.link || "/products",
+    image: slide.image || "/placeholder-banner.jpg",
   }))
 
   if (slides.length === 0) {
@@ -97,9 +99,9 @@ export function HeroSection() {
                   {slide.title}
                 </h1>
                 <p className="text-lg md:text-xl text-foreground/80 mb-8 text-pretty">{slide.subtitle}</p>
-                <Link href={slide.link}>
+                <Link href={slide.link || "/products"}>
                   <Button size="lg" className="text-base px-8">
-                    {slide.cta}
+                    {slide.cta || "Shop Now"}
                   </Button>
                 </Link>
               </div>

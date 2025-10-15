@@ -13,7 +13,7 @@ export async function PUT(
     }
 
     await query(
-      'UPDATE user_notifications SET is_read = 1 WHERE id = ?',
+      'UPDATE user_notifications SET is_read = true WHERE id = ?',
       [notificationId]
     )
 

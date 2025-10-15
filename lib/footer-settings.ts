@@ -1,4 +1,4 @@
-import { query } from './database'
+import { queryWithFallback } from './database'
 
 interface FooterSetting {
   section_key: string
@@ -32,11 +32,11 @@ export async function getFooterSettings(): Promise<Record<string, any>> {
     const sql = `
       SELECT section_key, section_value, section_type, section_name
       FROM footer_settings
-      WHERE is_active = 1
+      WHERE is_active = true
       ORDER BY sort_order ASC
     `
     
-    const settings = await query(sql) as FooterSetting[]
+    const settings = await queryWithFallback(sql) as FooterSetting[]
     
     // Convert to structured object
     const footerData: Record<string, any> = {}

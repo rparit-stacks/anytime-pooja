@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function POST(request: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     })
     
     // Check for duplicate name
-    const existingCategory = await query(
+    const existingCategory = await queryWithFallback(
       'SELECT id FROM categories WHERE name = ?',
       [name]
     ) as any[]
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check for duplicate slug
-    const existingSlug = await query(
+    const existingSlug = await queryWithFallback(
       'SELECT id FROM categories WHERE slug = ?',
       [slug]
     ) as any[]
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Get next available sort order if not provided
     let finalSortOrder = sortOrder
     if (sortOrder === 0) {
-      const maxSortOrder = await query(
+      const maxSortOrder = await queryWithFallback(
         'SELECT MAX(sort_order) as max_order FROM categories'
       ) as any[]
       finalSortOrder = (maxSortOrder[0]?.max_order || 0) + 1
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     
     const params = [name, slug, description, imagePath, finalSortOrder, isActive]
     console.log('Inserting category with params:', params)
-    await query(sql, params)
+    await queryWithFallback(sql, params)
     console.log('Category inserted successfully')
     
     return NextResponse.json({ success: true, message: 'Category added successfully' })
@@ -96,12 +96,12 @@ export async function GET() {
         c.is_active as isActive,
         COUNT(p.id) as productCount
       FROM categories c
-      LEFT JOIN products p ON c.id = p.category_id AND p.is_active = 1
+      LEFT JOIN products p ON c.id = p.category_id AND p.is_active = true
       GROUP BY c.id
       ORDER BY c.sort_order ASC, c.name ASC
     `
     
-    const categories = await query(sql) as any[]
+    const categories = await queryWithFallback(sql) as any[]
     console.log('Admin Categories API: Found categories:', categories.length, categories)
     return NextResponse.json({ categories })
   } catch (error) {

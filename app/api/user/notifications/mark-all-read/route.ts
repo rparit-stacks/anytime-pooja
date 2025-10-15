@@ -10,7 +10,7 @@ export async function PUT(request: NextRequest) {
     }
 
     await query(
-      'UPDATE user_notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      'UPDATE user_notifications SET is_read = true WHERE user_id = ? AND is_read = false',
       [userId]
     )
 

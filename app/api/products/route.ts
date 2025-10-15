@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { queryDirect } from "@/lib/database"
+import { queryDirectWithFallback } from "@/lib/database"
 
 export async function GET(req: Request) {
   try {
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
         p.gallery
       FROM products p
       JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = 1
+      WHERE p.is_active = true
     `
     
     const params: any[] = []
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 
     sql += ` ORDER BY p.is_featured DESC, p.created_at DESC`
 
-    const products = await queryDirect(sql, params) as any[]
+    const products = await queryDirectWithFallback(sql, params) as any[]
     console.log('Raw products from database:', products.length, products)
 
     // Transform the data to match the exact same format as mock data

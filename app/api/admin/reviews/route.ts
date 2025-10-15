@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
     }
     
     if (status === 'approved') {
-      sql += productId ? ` AND r.is_approved = 1` : ` WHERE r.is_approved = 1`
+      sql += productId ? ` AND r.is_approved = true` : ` WHERE r.is_approved = true`
     } else if (status === 'pending') {
-      sql += productId ? ` AND r.is_approved = 0` : ` WHERE r.is_approved = 0`
+      sql += productId ? ` AND r.is_approved = false` : ` WHERE r.is_approved = false`
     }
     
     sql += ` ORDER BY r.created_at DESC`
     
-    const reviews = await query(sql, params) as any[]
+    const reviews = await queryWithFallback(sql, params) as any[]
     
     return NextResponse.json({ reviews })
   } catch (error) {

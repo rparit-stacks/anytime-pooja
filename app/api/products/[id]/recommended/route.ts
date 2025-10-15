@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         c.slug as category_slug
       FROM products p
       JOIN categories c ON p.category_id = c.id
-      WHERE p.id = ? AND p.is_active = 1
+      WHERE p.id = ? AND p.is_active = true
     `
     
     const productResult = await queryDirect(productSql, [id]) as any[]
@@ -47,10 +47,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       FROM products p
       JOIN categories c ON p.category_id = c.id
       WHERE p.id != ? 
-        AND p.is_active = 1
+        AND p.is_active = true
         AND (
           p.category_id = ? 
-          OR p.is_featured = 1 
+          OR p.is_featured = true 
           OR (p.price BETWEEN ? AND ?)
           OR p.rating >= 4.0
         )

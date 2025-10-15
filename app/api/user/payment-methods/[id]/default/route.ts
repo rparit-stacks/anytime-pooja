@@ -26,13 +26,13 @@ export async function PUT(
 
     // Unset other default payment methods
     await query(
-      'UPDATE user_payment_methods SET is_default = 0 WHERE user_id = ?',
+      'UPDATE user_payment_methods SET is_default = false WHERE user_id = ?',
       [user_id]
     )
 
     // Set this payment method as default
     await query(
-      'UPDATE user_payment_methods SET is_default = 1 WHERE id = ?',
+      'UPDATE user_payment_methods SET is_default = true WHERE id = ?',
       [paymentId]
     )
 

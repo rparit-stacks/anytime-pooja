@@ -27,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         p.dimensions
       FROM products p
       JOIN categories c ON p.category_id = c.id
-      WHERE p.id = ? AND p.is_active = 1
+      WHERE p.id = ? AND p.is_active = true
     `
     
     const products = await queryDirect(sql, [id]) as any[]

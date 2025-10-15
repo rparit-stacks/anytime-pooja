@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         is_approved as isApproved,
         created_at as createdAt
       FROM reviews
-      WHERE product_id = ? AND is_approved = 1
+      WHERE product_id = ? AND is_approved = true
       ORDER BY created_at DESC
     `
     

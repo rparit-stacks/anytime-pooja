@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { queryWithFallback } from "@/lib/database"
 
 export async function GET() {
   try {
@@ -13,11 +13,11 @@ export async function GET() {
         image,
         sort_order
       FROM sliders
-      WHERE is_active = 1
+      WHERE is_active = true
       ORDER BY sort_order ASC
     `
     
-    const sliders = await query(sql) as any[]
+    const sliders = await queryWithFallback(sql) as any[]
     const response = NextResponse.json({ sliders })
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')

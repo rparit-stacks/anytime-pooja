@@ -26,13 +26,13 @@ export async function PUT(
 
     // Unset other default addresses of same type
     await query(
-      'UPDATE user_addresses SET is_default = 0 WHERE user_id = ? AND type = ?',
+      'UPDATE user_addresses SET is_default = false WHERE user_id = ? AND type = ?',
       [user_id, type]
     )
 
     // Set this address as default
     await query(
-      'UPDATE user_addresses SET is_default = 1 WHERE id = ?',
+      'UPDATE user_addresses SET is_default = true WHERE id = ?',
       [addressId]
     )
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 
 export async function GET() {
   try {
@@ -12,11 +12,11 @@ export async function GET() {
         p.is_featured as isTrending,
         p.created_at as sortOrder
       FROM products p
-      WHERE p.is_featured = 1 AND p.is_active = 1
+      WHERE p.is_featured = true AND p.is_active = true
       ORDER BY p.created_at DESC
     `
     
-    const products = await query(sql) as any[]
+    const products = await queryWithFallback(sql) as any[]
     
     return NextResponse.json({ products })
   } catch (error) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       WHERE id = ?
     `
     
-    await query(sql, [isTrending ? 1 : 0, productId])
+    await queryWithFallback(sql, [isTrending ? true : false, productId])
     
     return NextResponse.json({ 
       success: true, 

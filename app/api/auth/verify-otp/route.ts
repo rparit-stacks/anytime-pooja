@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     // Find OTP in database
     const otpRecords = await query(
-      'SELECT * FROM otp_verification WHERE email = ? AND purpose = ? AND is_verified = 0 ORDER BY created_at DESC LIMIT 1',
+      'SELECT * FROM otp_verification WHERE email = ? AND purpose = ? AND is_verified = false ORDER BY created_at DESC LIMIT 1',
       [email, purpose]
     ) as any[]
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Mark OTP as verified
     await query(
-      'UPDATE otp_verification SET is_verified = 1 WHERE id = ?',
+      'UPDATE otp_verification SET is_verified = true WHERE id = ?',
       [otpRecord.id]
     )
 

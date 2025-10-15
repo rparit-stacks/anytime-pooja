@@ -70,7 +70,7 @@ export async function PUT(
     // If setting as default, unset other default addresses of same type
     if (is_default) {
       await query(
-        'UPDATE user_addresses SET is_default = 0 WHERE user_id = ? AND type = ? AND id != ?',
+        'UPDATE user_addresses SET is_default = false WHERE user_id = ? AND type = ? AND id != ?',
         [existingAddress[0].user_id, type, addressId]
       )
     }

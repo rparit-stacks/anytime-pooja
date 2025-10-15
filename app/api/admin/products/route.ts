@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function POST(request: NextRequest) {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     })
     
     // Check for duplicate name
-    const existingProduct = await query(
+    const existingProduct = await queryWithFallback(
       'SELECT id FROM products WHERE name = ?',
       [name]
     ) as any[]
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check for duplicate slug
-    const existingSlug = await query(
+    const existingSlug = await queryWithFallback(
       'SELECT id FROM products WHERE slug = ?',
       [slug]
     ) as any[]
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     ]
     
     console.log('Inserting product with params:', params)
-    await query(sql, params)
+    await queryWithFallback(sql, params)
     console.log('Product inserted successfully')
     
     return NextResponse.json({ success: true, message: 'Product created successfully' })
@@ -157,7 +157,7 @@ export async function GET() {
       ORDER BY p.created_at DESC
     `
     
-    const products = await query(sql) as any[]
+    const products = await queryWithFallback(sql) as any[]
     
     return NextResponse.json({ products })
   } catch (error) {

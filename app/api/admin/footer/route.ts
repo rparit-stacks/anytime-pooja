@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 
 export async function GET() {
   try {
@@ -16,11 +16,11 @@ export async function GET() {
         created_at,
         updated_at
       FROM footer_settings
-      WHERE is_active = 1
+      WHERE is_active = true
       ORDER BY sort_order ASC, section_name ASC
     `
     
-    const footerSettings = await query(sql) as any[]
+    const footerSettings = await queryWithFallback(sql) as any[]
     
     // Group settings by section
     const groupedSettings = footerSettings.reduce((acc, setting) => {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         SET section_value = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE section_key = ?
       `
-      await query(updateSql, [value, key])
+      await queryWithFallback(updateSql, [value, key])
     }
     
     return NextResponse.json({ success: true, message: 'Footer settings updated successfully' })

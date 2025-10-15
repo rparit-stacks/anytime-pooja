@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       WHERE o.created_at >= ? AND o.status != 'cancelled'
     `
     
-    const currentData = await query(currentPeriodSql, [startDate.toISOString()]) as any[]
+    const currentData = await queryWithFallback(currentPeriodSql, [startDate.toISOString()]) as any[]
     
     // Get previous period data for comparison
     const previousStartDate = new Date()
@@ -36,11 +36,11 @@ export async function GET(request: NextRequest) {
       WHERE o.order_date >= ? AND o.order_date < ? AND o.order_status != 'cancelled'
     `
     
-    const previousData = await query(previousPeriodSql, [previousStartDate.toISOString(), startDate.toISOString()]) as any[]
+    const previousData = await queryWithFallback(previousPeriodSql, [previousStartDate.toISOString(), startDate.toISOString()]) as any[]
     
     // Get total products
-    const productsSql = `SELECT COUNT(*) as totalProducts FROM products WHERE is_active = 1`
-    const productsData = await query(productsSql) as any[]
+    const productsSql = `SELECT COUNT(*) as totalProducts FROM products WHERE is_active = true`
+    const productsData = await queryWithFallback(productsSql) as any[]
     
     // Get top products
     const topProductsSql = `
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       LIMIT 5
     `
     
-    const topProducts = await query(topProductsSql, [startDate.toISOString()]) as any[]
+    const topProducts = await queryWithFallback(topProductsSql, [startDate.toISOString()]) as any[]
     
     // Get recent orders
     const recentOrdersSql = `
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       LIMIT 5
     `
     
-    const recentOrders = await query(recentOrdersSql, [startDate.toISOString()]) as any[]
+    const recentOrders = await queryWithFallback(recentOrdersSql, [startDate.toISOString()]) as any[]
     
     // Calculate growth percentages
     const current = currentData[0] || { totalOrders: 0, totalRevenue: 0, totalCustomers: 0 }

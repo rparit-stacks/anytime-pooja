@@ -1,4 +1,4 @@
-import { query } from './database'
+import { queryWithFallback } from './database'
 
 interface Setting {
   setting_key: string
@@ -32,10 +32,10 @@ export async function getSettings(): Promise<Record<string, string>> {
     const sql = `
       SELECT setting_key, setting_value, setting_type, category
       FROM settings
-      WHERE is_active = 1
+      WHERE is_active = true
     `
     
-    const settings = await query(sql) as Setting[]
+    const settings = await queryWithFallback(sql) as Setting[]
     
     // Convert to key-value pairs
     const settingsMap: Record<string, string> = {}

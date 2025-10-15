@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 import { uploadToCloudinary } from "@/lib/cloudinary"
 
 export async function GET() {
@@ -16,11 +16,11 @@ export async function GET() {
         created_at,
         updated_at
       FROM settings
-      WHERE is_active = 1
+      WHERE is_active = true
       ORDER BY category, setting_key
     `
     
-    const settings = await query(sql) as any[]
+    const settings = await queryWithFallback(sql) as any[]
     
     // Group settings by category
     const groupedSettings = settings.reduce((acc, setting) => {
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         SET setting_value = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE setting_key = ? AND category = ?
       `
-      await query(updateSql, [settingValue, key, category])
+      await queryWithFallback(updateSql, [settingValue, key, category])
     }
     
     return NextResponse.json({ success: true, message: 'Settings updated successfully' })

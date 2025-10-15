@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         sort_order as sortOrder,
         is_active as isActive
       FROM sliders
-      WHERE id = ? AND is_active = 1
+      WHERE id = ? AND is_active = true
     `
 
     const sliders = await query(sql, [params.id]) as any[]

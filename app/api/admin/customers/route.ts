@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { query, queryWithFallback } from "@/lib/database"
 
 export async function GET() {
   try {
@@ -21,7 +21,7 @@ export async function GET() {
       ORDER BY u.created_at DESC
     `
     
-    const customers = await query(sql) as any[]
+    const customers = await queryWithFallback(sql) as any[]
     return NextResponse.json({ customers })
   } catch (error) {
     console.error('Error fetching customers:', error)

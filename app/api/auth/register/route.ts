@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Create user
     const result = await query(
       `INSERT INTO users (first_name, last_name, email, phone, password_hash, is_active, email_verified) 
-       VALUES (?, ?, ?, ?, ?, 1, 0)`,
+       VALUES (?, ?, ?, ?, ?, true, false)`,
       [firstName, lastName, email, phone || null, passwordHash]
     ) as any
 

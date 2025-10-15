@@ -83,7 +83,7 @@ export async function PUT(
     // If setting as default, unset other default payment methods
     if (is_default) {
       await query(
-        'UPDATE user_payment_methods SET is_default = 0 WHERE user_id = ?',
+        'UPDATE user_payment_methods SET is_default = false WHERE user_id = ?',
         [decoded.userId]
       )
     }

@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // If this is set as default, unset other default addresses of the same type
     if (is_default) {
       await query(
-        'UPDATE user_addresses SET is_default = 0 WHERE user_id = ? AND type = ?',
+        'UPDATE user_addresses SET is_default = false WHERE user_id = ? AND type = ?',
         [user_id, type]
       )
     }

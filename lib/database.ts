@@ -1,4 +1,46 @@
-import { executeQuery, executeWithPool } from './db-connectionless'
+import { Pool } from 'pg'
+
+// Create connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+})
+
+// Query function
+export async function query(text: string, params?: any[]): Promise<any[]> {
+  const client = await pool.connect()
+  try {
+    const result = await client.query(text, params)
+    return result.rows
+  } finally {
+    client.release()
+  }
+}
+
+// Direct query function (for compatibility)
+export async function queryDirect(text: string, params?: any[]): Promise<any[]> {
+  return query(text, params)
+}
+
+// Test connection
+export async function testConnection(): Promise<boolean> {
+  try {
+    await query('SELECT NOW()')
+    console.log('✅ PostgreSQL connection successful')
+    return true
+  } catch (error) {
+    console.error('❌ PostgreSQL connection failed:', error)
+    return false
+  }
+}
+
+// Close pool
+export async function closePool(): Promise<void> {
+  await pool.end()
+}
 
 // Fallback data when database is unavailable
 const fallbackCategories = [
@@ -23,7 +65,7 @@ const fallbackCategories = [
   {
     id: "3",
     name: "Crystals",
-    slug: "crystals", 
+    slug: "crystals",
     description: "Healing crystals and gemstones",
     image: "/placeholder.svg",
     sort_order: 3,
@@ -34,89 +76,97 @@ const fallbackCategories = [
 const fallbackProducts = [
   {
     id: "1",
-    name: "Sacred Rudraksha Mala",
-    price: 299,
-    original_price: 399,
+    name: "Premium Rose Quartz Crystal",
+    slug: "premium-rose-quartz-crystal",
+    description: "Beautiful natural rose quartz crystal for love and healing",
+    short_description: "Natural rose quartz crystal for love and healing",
+    price: 299.99,
+    original_price: 399.99,
     image: "/placeholder.svg",
-    rating: 4.5,
-    review_count: 12,
-    category: "rudraksha",
-    badge: "Popular",
+    gallery: null,
+    category_id: 1,
+    stock_quantity: 50,
+    is_active: 1,
     is_featured: 1,
-    stock_quantity: 10,
-    short_description: "Authentic 108 bead Rudraksha mala for meditation",
-    description: "This sacred Rudraksha mala is made from genuine Rudraksha beads and is perfect for meditation and spiritual practices.",
-    material: "Rudraksha beads",
-    origin: "Nepal",
-    weight: "50g",
-    dimensions: "108 beads"
+    rating: 4.80,
+    review_count: 234,
+    badge: "Trending",
+    weight: null,
+    dimensions: null,
+    material: "Natural Crystal",
+    origin: "Brazil"
   },
   {
     id: "2",
-    name: "Crystal Healing Set",
-    price: 599,
-    original_price: 799,
-    image: "/placeholder.svg", 
-    rating: 4.8,
-    review_count: 8,
-    category: "crystals",
-    badge: "New",
+    name: "Sacred Ganesha Idol",
+    slug: "sacred-ganesha-idol", 
+    description: "Handcrafted brass Ganesha idol for home temple",
+    short_description: "Handcrafted brass Ganesha idol for prosperity",
+    price: 549.99,
+    original_price: null,
+    image: "/placeholder.svg",
+    gallery: null,
+    category_id: 3,
+    stock_quantity: 25,
+    is_active: 1,
     is_featured: 1,
-    stock_quantity: 5,
-    short_description: "Complete crystal healing collection",
-    description: "A beautiful set of healing crystals including amethyst, rose quartz, and clear quartz.",
-    material: "Natural crystals",
-    origin: "Brazil",
-    weight: "200g",
-    dimensions: "Various sizes"
+    rating: 4.90,
+    review_count: 189,
+    badge: null,
+    weight: null,
+    dimensions: null,
+    material: "Brass",
+    origin: "India"
   }
 ]
 
 const fallbackSliders = [
   {
     id: "1",
-    title: "Welcome to Anytime Pooja",
-    subtitle: "Your spiritual journey begins here",
-    cta_text: "Shop Now",
-    cta_link: "/products",
-    image: "/placeholder.svg",
+    title: "Spiritual Collection",
+    subtitle: "Discover authentic spiritual items for your spiritual journey",
+    cta: "Shop Now",
+    link: "/products",
+    image: "/placeholder-banner.jpg",
     sort_order: 1,
     is_active: 1
   },
   {
     id: "2", 
     title: "Sacred Collections",
-    subtitle: "Discover authentic spiritual items",
-    cta_text: "Explore",
-    cta_link: "/products?category=pooja-items",
-    image: "/placeholder.svg",
+    subtitle: "Explore our curated collection of sacred items",
+    cta: "Explore",
+    link: "/products?category=pooja-items",
+    image: "/placeholder-banner.jpg",
     sort_order: 2,
     is_active: 1
   }
 ]
 
 // Smart query function with automatic fallback
-export async function query(sql: string, params: any[] = []) {
+export async function queryWithFallback(sql: string, params: any[] = []) {
   try {
-    return await executeQuery(sql, params)
+    return await query(sql, params)
   } catch (error) {
     console.warn('Database unavailable, using fallback data:', error instanceof Error ? error.message : 'Unknown error')
     return getFallbackData(sql)
   }
 }
 
-export async function queryDirect(sql: string, params: any[] = []) {
+// Direct query function with fallback
+export async function queryDirectWithFallback(sql: string, params: any[] = []) {
   try {
-    return await executeQuery(sql, params)
+    return await queryDirect(sql, params)
   } catch (error) {
     console.warn('Database unavailable, using fallback data:', error instanceof Error ? error.message : 'Unknown error')
     return getFallbackData(sql)
   }
 }
 
-export async function queryWithPool(sql: string, params: any[] = []) {
+// Query with pool function with fallback
+export async function queryWithPoolFallback(sql: string, params: any[] = []) {
   try {
-    return await executeWithPool(sql, params)
+    return await query(sql, params)
   } catch (error) {
     console.warn('Database unavailable, using fallback data:', error instanceof Error ? error.message : 'Unknown error')
     return getFallbackData(sql)
@@ -127,37 +177,30 @@ export async function queryWithPool(sql: string, params: any[] = []) {
 function getFallbackData(sql: string) {
   const lowerSql = sql.toLowerCase()
   
-  if (lowerSql.includes('categories') && lowerSql.includes('select')) {
-    return fallbackCategories
+  // Check for products first (more specific)
+  if (lowerSql.includes('from products') && lowerSql.includes('select')) {
+    return fallbackProducts
   }
   
-  if (lowerSql.includes('products') && lowerSql.includes('select')) {
-    return fallbackProducts
+  if (lowerSql.includes('from categories') && lowerSql.includes('select')) {
+    return fallbackCategories
   }
   
   if (lowerSql.includes('sliders') && lowerSql.includes('select')) {
     return fallbackSliders
   }
   
-  if (lowerSql.includes('reviews') && lowerSql.includes('select')) {
-    return [] // No reviews in fallback
+  if (lowerSql.includes('settings') && lowerSql.includes('select')) {
+    return []
   }
   
-  // Default fallback
+  if (lowerSql.includes('footer_settings') && lowerSql.includes('select')) {
+    return []
+  }
+  
+  if (lowerSql.includes('promo_banners') && lowerSql.includes('select')) {
+    return []
+  }
+  
   return []
 }
-
-export async function getConnection() {
-  throw new Error('getConnection not supported in connectionless mode')
-}
-
-// Add connection pool status monitoring
-export function getPoolStatus() {
-  return {
-    mode: 'connectionless',
-    message: 'Using connectionless database approach',
-    timestamp: new Date().toISOString()
-  }
-}
-
-export default { query, queryDirect, queryWithPool }

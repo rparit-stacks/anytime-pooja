@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { query } from "@/lib/database"
+import { queryWithFallback } from "@/lib/database"
 
 export async function GET() {
   try {
@@ -17,7 +17,7 @@ export async function GET() {
       WHERE is_active = TRUE
       ORDER BY banner_order ASC
     `
-    const banners = await query(sql) as any[]
+    const banners = await queryWithFallback(sql) as any[]
 
     // Add cache-busting headers
     const headers = new Headers()
