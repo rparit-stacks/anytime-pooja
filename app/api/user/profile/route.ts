@@ -64,13 +64,13 @@ export async function PUT(request: NextRequest) {
     
     // Update user profile
     await query(
-      `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+      `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateFields.length + 1}`,
       updateValues
     )
 
     // Get updated user data
     const users = await query(
-      'SELECT id, first_name, last_name, email, phone, bio, date_of_birth, gender, profile_image, is_active, email_verified FROM users WHERE id = ?',
+      'SELECT id, first_name, last_name, email, phone, bio, date_of_birth, gender, profile_image, is_active, email_verified FROM users WHERE id = $1',
       [decoded.userId]
     ) as any[]
 
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     // Update user profile image
     await query(
-      'UPDATE users SET profile_image = ? WHERE id = ?',
+      'UPDATE users SET profile_image = $1 WHERE id = $2',
       [profileImagePath, decoded.userId]
     )
 

@@ -3,226 +3,63 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { toast } from "sonner"
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faPlus, faEdit, faTrash, faEye, faCheck, faTimes } from "@fortawesome/free-solid-svg-icons"
+import { Badge } from "@/components/ui/badge"
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { 
+  Plus, 
+  Search, 
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  Eye,
+  Tags,
+  Filter
+} from "lucide-react"
 import Link from "next/link"
-
-// Category Form Component
-interface CategoryFormProps {
-  onSave: (data: Partial<Category>) => void
-  onCancel: () => void
-  saving: boolean
-  generateSlug: (name: string) => string
-  editingCategory?: Category | null
-}
-
-function CategoryForm({ onSave, onCancel, saving, generateSlug, editingCategory }: CategoryFormProps) {
-  const [formData, setFormData] = useState({
-    name: editingCategory?.name || '',
-    slug: editingCategory?.slug || '',
-    description: editingCategory?.description || '',
-    sortOrder: editingCategory?.sortOrder || 0, // 0 means auto-assign
-    isActive: editingCategory?.isActive ?? true
-  })
-
-  // Update form data when editingCategory changes
-  useEffect(() => {
-    if (editingCategory) {
-      setFormData({
-        name: editingCategory.name || '',
-        slug: editingCategory.slug || '',
-        description: editingCategory.description || '',
-        sortOrder: editingCategory.sortOrder || 0,
-        isActive: editingCategory.isActive ?? true
-      })
-    } else {
-      setFormData({
-        name: '',
-        slug: '',
-        description: '',
-        sortOrder: 0,
-        isActive: true
-      })
-    }
-  }, [editingCategory])
-
-  const handleNameChange = (name: string) => {
-    setFormData(prev => ({
-      ...prev,
-      name,
-      slug: editingCategory ? prev.slug : generateSlug(name) // Only auto-generate for new categories
-    }))
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-sm font-medium">Category Name *</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="Enter category name"
-            required
-            disabled={saving}
-            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="slug" className="text-sm font-medium">Slug *</Label>
-          <Input
-            id="slug"
-            value={formData.slug}
-            onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-            placeholder="category-slug"
-            required
-            disabled={saving}
-            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-          placeholder="Enter category description"
-          disabled={saving}
-          className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 min-h-[100px]"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="sortOrder" className="text-sm font-medium">Sort Order</Label>
-          <Input
-            id="sortOrder"
-            type="number"
-            value={formData.sortOrder || ''}
-            onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
-            placeholder={editingCategory ? "Current: " + editingCategory.sortOrder : "Auto-assign"}
-            min="0"
-            disabled={saving}
-            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-muted-foreground">
-            Leave empty or 0 for auto-assignment
-          </p>
-        </div>
-        <div className="flex items-center space-x-3 pt-6">
-          <Switch
-            id="isActive"
-            checked={formData.isActive}
-            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
-            disabled={saving}
-            className="transition-all duration-200"
-          />
-          <Label htmlFor="isActive" className="text-sm font-medium">Active Status</Label>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="category_image" className="text-sm font-medium">Category Image</Label>
-        <Input
-          id="category_image"
-          name="category_image"
-          type="file"
-          accept="image/*"
-          disabled={saving}
-          className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-        />
-        {editingCategory?.image && (
-          <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
-            <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
-            <img 
-              src={editingCategory.image} 
-              alt="Current category"
-              className="w-40 h-24 object-cover rounded border shadow-sm"
-              onError={(e) => { e.currentTarget.src = '/placeholder.svg' }}
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end gap-3 pt-4">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={onCancel} 
-          disabled={saving}
-          className="transition-all duration-200 hover:bg-gray-50"
-        >
-          Cancel
-        </Button>
-        <Button 
-          type="submit" 
-          disabled={saving}
-          className="transition-all duration-200 hover:bg-blue-600 min-w-[140px]"
-        >
-          {saving ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Processing...
-            </div>
-          ) : (
-            <>
-              <FontAwesomeIcon icon={faCheck} className="h-4 w-4 mr-2" />
-              {editingCategory ? 'Update Category' : 'Create Category'}
-            </>
-          )}
-        </Button>
-      </div>
-    </form>
-  )
-}
+import { useToast } from "@/hooks/use-toast"
 
 interface Category {
-  id: string
+  id: number
   name: string
-  slug: string
   description: string
+  is_active: boolean
+  product_count?: number
   image: string
-  sortOrder: number
-  isActive: boolean
-  productCount: number
+  created_at: string
+  updated_at: string
 }
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const [bulkActionLoading, setBulkActionLoading] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  // Auto-generate slug from name
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single
-      .trim()
-  }
+  const [searchTerm, setSearchTerm] = useState("")
+  const [deleteCategory, setDeleteCategory] = useState<Category | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchCategories()
@@ -231,348 +68,321 @@ export default function AdminCategoriesPage() {
   const fetchCategories = async () => {
     try {
       setLoading(true)
-      setError(null)
-      
       const response = await fetch('/api/admin/categories')
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories')
-      }
-      
       const data = await response.json()
-      setCategories(data.categories || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load categories')
-      console.error('Error fetching categories:', err)
+      
+      if (data.success) {
+        setCategories(data.categories || [])
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch categories",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDelete = async (categoryId: string) => {
-    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-      return
-    }
-
+  const handleDeleteCategory = async () => {
+    if (!deleteCategory) return
+    
     try {
-      const response = await fetch(`/api/admin/categories/${categoryId}`, {
+      setDeleting(true)
+      const response = await fetch(`/api/admin/categories/${deleteCategory.id}`, {
         method: 'DELETE'
       })
-
-      if (response.ok) {
-        setCategories(prev => prev.filter(cat => cat.id !== categoryId))
-        alert('Category deleted successfully')
-      } else {
-        alert('Failed to delete category')
-      }
-    } catch (err) {
-      alert('Failed to delete category')
-    }
-  }
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedItems(categories.map(cat => cat.id))
-    } else {
-      setSelectedItems([])
-    }
-  }
-
-  const handleSelectItem = (categoryId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedItems(prev => [...prev, categoryId])
-    } else {
-      setSelectedItems(prev => prev.filter(id => id !== categoryId))
-    }
-  }
-
-  const handleSave = async (categoryData: Partial<Category>) => {
-    setSaving(true)
-    try {
-      const formData = new FormData()
       
-      // Add all form data
-      formData.append('name', categoryData.name || '')
-      formData.append('slug', categoryData.slug || '')
-      formData.append('description', categoryData.description || '')
-      formData.append('sortOrder', (categoryData.sortOrder || 0).toString())
-      formData.append('isActive', (categoryData.isActive ?? true).toString())
-
-      // Handle image upload
-      const categoryImage = document.getElementById('category_image') as HTMLInputElement
-      if (categoryImage?.files?.[0]) {
-        formData.append('image', categoryImage.files[0])
-      }
-
-      const url = editingCategory 
-        ? `/api/admin/categories/${editingCategory.id}`
-        : '/api/admin/categories'
+      const data = await response.json()
       
-      const method = editingCategory ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method,
-        body: formData
-      })
-
-      if (response.ok) {
-        toast.success(editingCategory ? 'Category updated successfully!' : 'Category created successfully!')
-        await fetchCategories()
-        setEditingCategory(null)
-        setShowAddForm(false)
-        // Reset form
-        if (categoryImage) {
-          categoryImage.value = ''
-        }
+      if (data.success) {
+        setCategories(categories.filter(c => c.id !== deleteCategory.id))
+        toast({
+          title: "Success",
+          description: "Category deleted successfully"
+        })
       } else {
-        const errorData = await response.json()
-        if (errorData.code === 'DUPLICATE_NAME') {
-          toast.error('Category with this name already exists. Please choose a different name.')
-        } else if (errorData.code === 'DUPLICATE_SLUG') {
-          toast.error('Category with this slug already exists. Please choose a different slug.')
-        } else {
-          toast.error(errorData.error || 'Failed to save category')
-        }
+        toast({
+          title: "Error",
+          description: data.error || "Failed to delete category",
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      console.error('Error saving category:', error)
-      alert('Failed to save category')
+      console.error('Error deleting category:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive"
+      })
     } finally {
-      setSaving(false)
+      setDeleting(false)
+      setDeleteCategory(null)
     }
   }
 
-  const handleBulkActivate = async () => {
-    if (selectedItems.length === 0) {
-      alert('Please select items to activate')
-      return
-    }
-
-    setBulkActionLoading(true)
+  const toggleCategoryStatus = async (category: Category) => {
     try {
-      const promises = selectedItems.map(id => 
-        fetch(`/api/admin/categories/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isActive: true })
+      const response = await fetch(`/api/admin/categories/${category.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          is_active: !category.is_active
         })
-      )
-
-      await Promise.all(promises)
-      setCategories(prev => prev.map(cat => 
-        selectedItems.includes(cat.id) ? { ...cat, isActive: true } : cat
-      ))
-      setSelectedItems([])
-      alert(`${selectedItems.length} categories activated successfully`)
-    } catch (err) {
-      alert('Failed to activate categories')
-    } finally {
-      setBulkActionLoading(false)
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setCategories(categories.map(c => 
+          c.id === category.id 
+            ? { ...c, is_active: !c.is_active }
+            : c
+        ))
+        toast({
+          title: "Success",
+          description: `Category ${!category.is_active ? 'activated' : 'deactivated'} successfully`
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to update category status",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error updating category status:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update category status",
+        variant: "destructive"
+      })
     }
   }
 
-  const handleBulkDeactivate = async () => {
-    if (selectedItems.length === 0) {
-      alert('Please select items to deactivate')
-      return
-    }
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    category.description.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
-    setBulkActionLoading(true)
-    try {
-      const promises = selectedItems.map(id => 
-        fetch(`/api/admin/categories/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isActive: false })
-        })
-      )
-
-      await Promise.all(promises)
-      setCategories(prev => prev.map(cat => 
-        selectedItems.includes(cat.id) ? { ...cat, isActive: false } : cat
-      ))
-      setSelectedItems([])
-      alert(`${selectedItems.length} categories deactivated successfully`)
-    } catch (err) {
-      alert('Failed to deactivate categories')
-    } finally {
-      setBulkActionLoading(false)
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
   }
 
   if (loading) {
     return (
-      <div className="text-center py-8">Loading categories...</div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={fetchCategories}>Retry</Button>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Categories</h1>
+          <div className="h-10 w-32 bg-muted animate-pulse rounded"></div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4">
+                  <div className="h-12 w-12 bg-muted animate-pulse rounded"></div>
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-48 bg-muted animate-pulse rounded"></div>
+                    <div className="h-3 w-32 bg-muted animate-pulse rounded"></div>
+                  </div>
+                  <div className="h-8 w-20 bg-muted animate-pulse rounded"></div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="font-serif text-3xl md:text-4xl font-bold text-balance">
-                Category Management
-              </h1>
-              <p className="text-muted-foreground">
-                Manage product categories and their settings
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {selectedItems.length > 0 && (
-                <>
-                  <Button 
-                    onClick={handleBulkActivate}
-                    disabled={bulkActionLoading}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <FontAwesomeIcon icon={faCheck} className="mr-2 h-4 w-4" />
-                    Activate ({selectedItems.length})
-                  </Button>
-                  <Button 
-                    onClick={handleBulkDeactivate}
-                    disabled={bulkActionLoading}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <FontAwesomeIcon icon={faTimes} className="mr-2 h-4 w-4" />
-                    Deactivate ({selectedItems.length})
-                  </Button>
-                </>
-              )}
-              <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
-                    Add New Category
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold">Add New Category</DialogTitle>
-                  </DialogHeader>
-                  <CategoryForm 
-                    onSave={handleSave}
-                    onCancel={() => setShowAddForm(false)}
-                    saving={saving}
-                    generateSlug={generateSlug}
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold">Categories</h1>
+          <p className="text-muted-foreground">
+            Manage your product categories
+          </p>
         </div>
+        <Link href="/admin/categories/new">
+          <Button className="no-transition">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+        </Link>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Categories</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={selectedItems.length === categories.length && categories.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead className="w-[80px]">Image</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Sort Order</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Products</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {categories.map((category) => (
-                    <TableRow key={category.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedItems.includes(category.id)}
-                          onCheckedChange={(checked) => handleSelectItem(category.id, checked as boolean)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-16 h-16 relative">
-                          <img 
-                            src={category.image || "/placeholder.svg"} 
-                            alt={category.name}
-                            className="w-full h-full object-cover rounded-md"
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {category.slug}
-                        </code>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {category.description}
-                      </TableCell>
-                      <TableCell>{category.sortOrder}</TableCell>
-                      <TableCell>
-                        <Badge variant={category.isActive ? "default" : "secondary"}>
-                          {category.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {category.productCount || 0} products
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle className="text-xl font-semibold">Edit Category</DialogTitle>
-                              </DialogHeader>
-                              <CategoryForm 
-                                onSave={handleSave}
-                                onCancel={() => setEditingCategory(null)}
-                                saving={saving}
-                                generateSlug={generateSlug}
-                                editingCategory={category}
-                              />
-                            </DialogContent>
-                          </Dialog>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => handleDelete(category.id)}
-                          >
-                            <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search categories..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          </CardContent>
-        </Card>
+            <Button variant="outline" className="no-transition">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* Categories Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Tags className="h-5 w-5" />
+            Categories ({filteredCategories.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredCategories.length === 0 ? (
+            <div className="text-center py-12">
+              <Tags className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No categories found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first category"}
+              </p>
+              <Link href="/admin/categories/new">
+                <Button className="no-transition">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Category
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Products</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCategories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                          {category.image ? (
+                            <img
+                              src={category.image}
+                              alt={category.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Tags className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{category.name}</p>
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            {category.description}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {category.product_count || 0} products
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={category.is_active ? "default" : "secondary"}>
+                        {category.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(category.created_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="no-transition">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/admin/categories/${category.id}/edit`}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => toggleCategoryStatus(category)}
+                          >
+                            {category.is_active ? 'Deactivate' : 'Activate'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteCategory(category)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteCategory} onOpenChange={() => setDeleteCategory(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteCategory?.name}"? This action cannot be undone.
+              {deleteCategory?.product_count && deleteCategory.product_count > 0 && (
+                <span className="block mt-2 text-destructive font-medium">
+                  Warning: This category has {deleteCategory.product_count} products associated with it.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCategory}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

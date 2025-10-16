@@ -15,17 +15,28 @@ export function PageTransition({ children }: PageTransitionProps) {
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement
+
+      // Don't interfere with buttons, inputs, or form elements
+      if (target.tagName === 'BUTTON' ||
+        target.tagName === 'INPUT' ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('[role="button"]') ||
+        target.closest('.no-transition')) {
+        return
+      }
+
       const link = target.closest('a[href]') as HTMLAnchorElement
-      
+
       if (link && link.href && !link.href.startsWith('mailto:') && !link.href.startsWith('tel:')) {
         const href = link.getAttribute('href')
-        
+
         // Check if it's an internal link
         if (href && (href.startsWith('/') || href.includes(window.location.hostname))) {
           e.preventDefault()
           setIsTransitioning(true)
           setTransitionText("Loading page...")
-          
+
           // Navigate after a short delay to show loading
           setTimeout(() => {
             window.location.href = href

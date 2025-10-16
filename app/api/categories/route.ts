@@ -18,13 +18,20 @@ export async function GET() {
     
     const categories = await queryDirectWithFallback(sql) as any[]
     console.log('Categories API: Found categories:', categories.length, categories)
-    const response = NextResponse.json({ categories })
+    const response = NextResponse.json({ 
+      success: true,
+      categories: categories || []
+    })
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')
     return response
   } catch (error) {
     console.error('Database error:', error)
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })
+    return NextResponse.json({ 
+      success: false,
+      error: 'Failed to fetch categories',
+      categories: []
+    }, { status: 500 })
   }
 }

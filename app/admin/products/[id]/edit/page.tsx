@@ -1,638 +1,824 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { LoadingCard, LoadingOverlay, LoadingSpinner } from "@/components/ui/loading"
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { 
-  faArrowLeft, 
-  faSave, 
-  faUpload, 
-  faEdit,
-  faTrash,
-  faEye,
-  faCheck,
-  faTimes
-} from "@fortawesome/free-solid-svg-icons"
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
+import { FileUpload } from "@/components/ui/file-upload"
+import { 
+  ArrowLeft, 
+  Save,
+  Eye,
+  Package,
+  Image as ImageIcon,
+  X,
+  Plus,
+  Loader2
+} from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
+import { uploadFile } from "@/lib/api-utils"
 
 interface Category {
-  id: string
+  id: number
   name: string
-  slug: string
 }
 
 interface Product {
-  id: string
+  id: number
+  name: string
+  description: string
+  price: number
+  category_id: number
+  category_name?: string
+  stock_quantity: number
+  is_active: boolean
+  image: string
+  gallery?: string | string[]
+  created_at: string
+  updated_at: string
+}
+
+interface ProductFormData {
   name: string
   slug: string
   description: string
-  shortDescription: string
-  price: number
-  originalPrice?: number
-  image: string
-  categoryId: string
-  stockQuantity: number
-  isActive: boolean
-  isFeatured: boolean
-  rating: number
-  reviewCount: number
-  badge?: string
-  material?: string
-  origin?: string
-  weight?: number
-  dimensions?: string
+  short_description: string
+  price: string
+  original_price: string
+  category_id: string
+  stock_quantity: string
+  is_active: boolean
+  is_featured: boolean
+  badge: string
+  weight: string
+  dimensions: string
+  material: string
+  origin: string
+  main_image: string
+  gallery_images: string[]
 }
 
 export default function EditProductPage() {
-  const params = useParams()
   const router = useRouter()
+  const params = useParams()
   const productId = params.id as string
-
+  const { toast } = useToast()
+  
   const [categories, setCategories] = useState<Category[]>([])
   const [product, setProduct] = useState<Product | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    name: "",
-    slug: "",
-    description: "",
-    shortDescription: "",
-    price: "",
-    originalPrice: "",
-    categoryId: "",
-    stockQuantity: "",
-    isActive: true,
-    isFeatured: false,
-    rating: "0",
-    reviewCount: "0",
-    badge: "",
-    material: "",
-    origin: "",
-    weight: "",
-    dimensions: "",
-    image: null as File | null,
-    gallery: [] as File[]
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [currentStep, setCurrentStep] = useState(1)
+  const [initialLoading, setInitialLoading] = useState(true)
+  
+  const [formData, setFormData] = useState<ProductFormData>({
+    name: '',
+    slug: '',
+    description: '',
+    short_description: '',
+    price: '',
+    original_price: '',
+    category_id: '',
+    stock_quantity: '',
+    is_active: true,
+    is_featured: false,
+    badge: '',
+    weight: '',
+    dimensions: '',
+    material: '',
+    origin: '',
+    main_image: '',
+    gallery_images: []
   })
 
   useEffect(() => {
     if (productId) {
-      fetchData()
+      fetchProduct()
+      fetchCategories()
     }
   }, [productId])
 
-  const fetchData = async () => {
+  const fetchProduct = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setInitialLoading(true)
+      const response = await fetch(`/api/admin/products/${productId}`)
+      const data = await response.json()
 
-      // Fetch categories
-      const categoriesResponse = await fetch('/api/admin/categories')
-      const categoriesData = await categoriesResponse.json()
-      setCategories(categoriesData.categories || [])
+      if (data.success) {
+        const productData = data.product
+        setProduct(productData)
+        
+        // Parse gallery images if it's a string
+        let galleryImages = []
+        if (productData.gallery) {
+          if (typeof productData.gallery === 'string') {
+            try {
+              galleryImages = JSON.parse(productData.gallery)
+            } catch (e) {
+              galleryImages = []
+            }
+          } else if (Array.isArray(productData.gallery)) {
+            galleryImages = productData.gallery
+          }
+        }
 
-      // Fetch product details
-      const productResponse = await fetch(`/api/admin/products/${productId}`)
-      if (!productResponse.ok) {
-        throw new Error('Product not found')
+        setFormData({
+          name: productData.name || '',
+          slug: productData.slug || '',
+          description: productData.description || '',
+          short_description: productData.short_description || '',
+          price: productData.price?.toString() || '',
+          original_price: productData.original_price?.toString() || '',
+          category_id: productData.category_id?.toString() || '',
+          stock_quantity: productData.stock_quantity?.toString() || '0',
+          is_active: productData.is_active !== false,
+          is_featured: productData.is_featured || false,
+          badge: productData.badge || '',
+          weight: productData.weight?.toString() || '',
+          dimensions: productData.dimensions || '',
+          material: productData.material || '',
+          origin: productData.origin || '',
+          main_image: productData.image || '',
+          gallery_images: galleryImages
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || 'Failed to fetch product',
+          variant: "destructive"
+        })
+        router.push('/admin/products')
       }
-      const productData = await productResponse.json()
-      const productInfo = productData.product
-
-      setProduct(productInfo)
-      setFormData({
-        name: productInfo.name || "",
-        slug: productInfo.slug || "",
-        description: productInfo.description || "",
-        shortDescription: productInfo.shortDescription || "",
-        price: productInfo.price?.toString() || "",
-        originalPrice: productInfo.originalPrice?.toString() || "",
-        categoryId: productInfo.categoryId || "",
-        stockQuantity: productInfo.stockQuantity?.toString() || "",
-        isActive: productInfo.isActive ?? true,
-        isFeatured: productInfo.isFeatured ?? false,
-        rating: productInfo.rating?.toString() || "0",
-        reviewCount: productInfo.reviewCount?.toString() || "0",
-        badge: productInfo.badge || "",
-        material: productInfo.material || "",
-        origin: productInfo.origin || "",
-        weight: productInfo.weight?.toString() || "",
-        dimensions: productInfo.dimensions || "",
-        image: null
+    } catch (error) {
+      console.error('Error fetching product:', error)
+      toast({
+        title: "Error",
+        description: 'Failed to fetch product',
+        variant: "destructive"
       })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load product')
-      console.error('Error fetching data:', err)
+      router.push('/admin/products')
     } finally {
-      setLoading(false)
+      setInitialLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/admin/categories')
+      const data = await response.json()
+      if (data.success) {
+        setCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
+
+  const handleInputChange = (field: keyof ProductFormData, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
   }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        image: file
-      }))
-    }
-  }
-
-  const handleGalleryUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (files) {
-      const fileArray = Array.from(files)
-      setFormData(prev => ({
-        ...prev,
-        gallery: [...prev.gallery, ...fileArray]
-      }))
+  const handleImageUpload = async (file: File, type: 'main' | 'gallery', galleryIndex?: number) => {
+    try {
+      setUploading(true)
+      if (type === 'gallery' && galleryIndex !== undefined) {
+        setUploadingIndex(galleryIndex)
+      }
+      
+      const data = await uploadFile(file, 'product', 'anytime-pooja')
+      
+      if (type === 'main') {
+        setFormData(prev => ({
+          ...prev,
+          main_image: data.url
+        }))
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          gallery_images: [...prev.gallery_images, data.url]
+        }))
+      }
+      
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully"
+      })
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload image",
+        variant: "destructive"
+      })
+    } finally {
+      setUploading(false)
+      setUploadingIndex(null)
     }
   }
 
   const removeGalleryImage = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      gallery: prev.gallery.filter((_, i) => i !== index)
+      gallery_images: prev.gallery_images.filter((_, i) => i !== index)
     }))
+    toast({
+      title: "Success",
+      description: "Image removed from gallery"
+    })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    setError(null)
-
+  const replaceGalleryImage = async (file: File, index: number) => {
     try {
-      const formDataToSend = new FormData()
+      setUploading(true)
+      setUploadingIndex(index)
       
-      // Add all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== 'image' && key !== 'gallery' && value !== null) {
-          formDataToSend.append(key, value.toString())
-        }
+      const data = await uploadFile(file, 'product', 'anytime-pooja')
+      
+      setFormData(prev => ({
+        ...prev,
+        gallery_images: prev.gallery_images.map((img, i) => 
+          i === index ? data.url : img
+        )
+      }))
+      
+      toast({
+        title: "Success",
+        description: "Image replaced successfully"
       })
-
-      // Add main image if selected
-      if (formData.image) {
-        formDataToSend.append('image', formData.image)
-      }
-
-      // Add gallery images
-      formData.gallery.forEach((file, index) => {
-        formDataToSend.append('gallery', file)
+    } catch (error) {
+      console.error('Error replacing image:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to replace image",
+        variant: "destructive"
       })
-
-      const response = await fetch(`/api/admin/products/${productId}`, {
-        method: 'PUT',
-        body: formDataToSend
-      })
-
-      if (response.ok) {
-        setSuccess('Product updated successfully')
-        setTimeout(() => {
-          router.push('/admin/products')
-        }, 2000)
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to update product')
-      }
-    } catch (err) {
-      setError('Failed to update product')
-      console.error('Error updating product:', err)
     } finally {
-      setSaving(false)
+      setUploading(false)
+      setUploadingIndex(null)
     }
   }
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+  const handleFinalSubmit = async () => {
+    if (!formData.name || !formData.price || !formData.category_id) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      })
       return
     }
 
     try {
-      setSaving(true)
+      setLoading(true)
+      
       const response = await fetch(`/api/admin/products/${productId}`, {
-        method: 'DELETE'
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          slug: formData.slug,
+          description: formData.description,
+          short_description: formData.short_description,
+          price: parseFloat(formData.price),
+          original_price: formData.original_price ? parseFloat(formData.original_price) : null,
+          stock_quantity: parseInt(formData.stock_quantity) || 0,
+          category_id: parseInt(formData.category_id),
+          is_active: formData.is_active,
+          is_featured: formData.is_featured,
+          badge: formData.badge,
+          weight: formData.weight ? parseFloat(formData.weight) : null,
+          dimensions: formData.dimensions,
+          material: formData.material,
+          origin: formData.origin,
+          image: formData.main_image,
+          gallery: formData.gallery_images
+        })
       })
-
-      if (response.ok) {
-        setSuccess('Product deleted successfully')
-        setTimeout(() => {
-          router.push('/admin/products')
-        }, 2000)
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Product updated successfully"
+        })
+        router.push('/admin/products')
       } else {
-        setError('Failed to delete product')
+        toast({
+          title: "Error",
+          description: data.error || "Failed to update product",
+          variant: "destructive"
+        })
       }
-    } catch (err) {
-      setError('Failed to delete product')
+    } catch (error) {
+      console.error('Error updating product:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive"
+      })
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
   }
 
-  if (loading) {
+  const nextStep = () => {
+    if (currentStep < 3) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+
+  const canProceedToStep2 = formData.name && formData.description && formData.price && formData.category_id
+  const canProceedToStep3 = canProceedToStep2 && formData.main_image
+
+  if (initialLoading) {
     return (
-      <div className="text-center py-8">
-        <LoadingCard text="Loading product details..." />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping"></div>
+          </div>
+          <div>
+            <p className="text-lg font-semibold">Loading Product...</p>
+            <p className="text-sm text-muted-foreground">Please wait while we fetch the product details</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!product) {
     return (
-      <div className="text-center py-8">
-        <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-        <Link href="/admin/products">
-          <Button>
-            <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4 mr-2" />
-            Back to Products
-          </Button>
-        </Link>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Package className="h-12 w-12 text-muted-foreground mx-auto" />
+          <div>
+            <p className="text-lg font-semibold">Product Not Found</p>
+            <p className="text-sm text-muted-foreground">The product you're looking for doesn't exist</p>
+          </div>
+          <Link href="/admin/products">
+            <Button className="no-transition">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Products
+            </Button>
+          </Link>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
-      {saving && <LoadingOverlay text="Saving changes..." />}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link href="/admin/products">
+          <Button variant="ghost" size="sm" className="no-transition">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Products
+          </Button>
+        </Link>
         <div>
-          <div className="flex items-center gap-4 mb-4">
-            <Link href="/admin/products">
-              <Button variant="ghost" size="sm">
-                <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4 mr-2" />
-                Back to Products
-              </Button>
-            </Link>
-          </div>
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="font-serif text-3xl md:text-4xl font-bold text-balance">
-                Edit Product
-              </h1>
-              <p className="text-muted-foreground">
-                Update product information and settings
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link href={`/products/${productId}`}>
-                <Button variant="outline" size="sm">
-                  <FontAwesomeIcon icon={faEye} className="h-4 w-4 mr-2" />
-                  Preview
-                </Button>
-              </Link>
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={handleDelete}
-                disabled={saving}
-              >
-                <FontAwesomeIcon icon={faTrash} className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold">Edit Product</h1>
+          <p className="text-muted-foreground">
+            Update "{product.name}" information
+          </p>
         </div>
+      </div>
 
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 flex items-center gap-2">
-            <FontAwesomeIcon icon={faCheck} className="h-4 w-4" />
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 flex items-center gap-2">
-            <FontAwesomeIcon icon={faTimes} className="h-4 w-4" />
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Form */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faEdit} className="h-5 w-5" />
-                    Product Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Product Name *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        placeholder="e.g., Premium Rose Quartz Crystal"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="slug">Slug *</Label>
-                      <Input
-                        id="slug"
-                        value={formData.slug}
-                        onChange={(e) => handleInputChange('slug', e.target.value)}
-                        placeholder="e.g., premium-rose-quartz-crystal"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="shortDescription">Short Description</Label>
-                    <Textarea
-                      id="shortDescription"
-                      value={formData.shortDescription}
-                      onChange={(e) => handleInputChange('shortDescription', e.target.value)}
-                      placeholder="Brief description for product cards"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description">Full Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value)}
-                      placeholder="Detailed product description"
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="price">Price (₹) *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        value={formData.price}
-                        onChange={(e) => handleInputChange('price', e.target.value)}
-                        placeholder="299.99"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="originalPrice">Original Price (₹)</Label>
-                      <Input
-                        id="originalPrice"
-                        type="number"
-                        step="0.01"
-                        value={formData.originalPrice}
-                        onChange={(e) => handleInputChange('originalPrice', e.target.value)}
-                        placeholder="399.99"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="stockQuantity">Stock Quantity</Label>
-                      <Input
-                        id="stockQuantity"
-                        type="number"
-                        value={formData.stockQuantity}
-                        onChange={(e) => handleInputChange('stockQuantity', e.target.value)}
-                        placeholder="50"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="categoryId">Category *</Label>
-                      <Select value={formData.categoryId} onValueChange={(value) => handleInputChange('categoryId', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="badge">Badge</Label>
-                      <Input
-                        id="badge"
-                        value={formData.badge}
-                        onChange={(e) => handleInputChange('badge', e.target.value)}
-                        placeholder="e.g., Trending, Best Seller"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="material">Material</Label>
-                      <Input
-                        id="material"
-                        value={formData.material}
-                        onChange={(e) => handleInputChange('material', e.target.value)}
-                        placeholder="e.g., Natural Crystal, Brass"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="origin">Origin</Label>
-                      <Input
-                        id="origin"
-                        value={formData.origin}
-                        onChange={(e) => handleInputChange('origin', e.target.value)}
-                        placeholder="e.g., India, Brazil"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="weight">Weight (g)</Label>
-                      <Input
-                        id="weight"
-                        type="number"
-                        step="0.01"
-                        value={formData.weight}
-                        onChange={(e) => handleInputChange('weight', e.target.value)}
-                        placeholder="100.5"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="dimensions">Dimensions</Label>
-                      <Input
-                        id="dimensions"
-                        value={formData.dimensions}
-                        onChange={(e) => handleInputChange('dimensions', e.target.value)}
-                        placeholder="e.g., 10x10x5 cm"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Progress Steps */}
+      <div className="flex items-center justify-center space-x-4">
+        {[1, 2, 3].map((step) => (
+          <div key={step} className="flex items-center">
+            <div className={`
+              w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300
+              ${currentStep >= step 
+                ? 'bg-primary text-primary-foreground scale-110' 
+                : 'bg-muted text-muted-foreground'
+              }
+            `}>
+              {step}
             </div>
+            <div className="ml-2 text-sm">
+              {step === 1 && 'Basic Info'}
+              {step === 2 && 'Images'}
+              {step === 3 && 'Review'}
+            </div>
+            {step < 3 && (
+              <div className={`
+                w-12 h-0.5 ml-4 transition-all duration-300
+                ${currentStep > step ? 'bg-primary' : 'bg-muted'}
+              `} />
+            )}
+          </div>
+        ))}
+      </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faUpload} className="h-5 w-5" />
-                    Product Image
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {product.image && (
-                      <div className="w-full h-48 relative border border-border rounded-lg overflow-hidden">
-                        <img 
-                          src={product.image} 
-                          alt="Current product image"
-                          className="w-full h-full object-cover"
-                        />
+      <div>
+        {/* Step 1: Basic Information */}
+        {currentStep === 1 && (
+          <div className="animate-in slide-in-from-right-5 duration-300">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Basic Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Product Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      placeholder="Enter product name"
+                      required
+                      className="transition-all duration-200 focus:scale-[1.02]"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category *</Label>
+                    <Select
+                      value={formData.category_id}
+                      onValueChange={(value) => handleInputChange('category_id', value)}
+                    >
+                      <SelectTrigger className="transition-all duration-200 focus:scale-[1.02]">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    placeholder="Enter product description"
+                    rows={4}
+                    required
+                    className="transition-all duration-200 focus:scale-[1.01]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price (₹) *</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => handleInputChange('price', e.target.value)}
+                      placeholder="0.00"
+                      required
+                      className="transition-all duration-200 focus:scale-[1.02]"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="stock">Stock Quantity</Label>
+                    <Input
+                      id="stock"
+                      type="number"
+                      value={formData.stock_quantity}
+                      onChange={(e) => handleInputChange('stock_quantity', e.target.value)}
+                      placeholder="0"
+                      className="transition-all duration-200 focus:scale-[1.02]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => handleInputChange('is_active', checked)}
+                  />
+                  <Label htmlFor="active">Product is active</Label>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceedToStep2}
+                    className="no-transition transition-all duration-200 hover:scale-105"
+                  >
+                    Next: Update Images
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Step 2: Images */}
+        {currentStep === 2 && (
+          <div className="animate-in slide-in-from-right-5 duration-300">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Product Images
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Main Image */}
+                <div className="space-y-4">
+                  <Label>Main Image *</Label>
+                  <div className="relative">
+                    {uploading && uploadingIndex === null ? (
+                      <div className="w-full h-64 border-2 border-dashed border-primary rounded-lg flex items-center justify-center bg-primary/5">
+                        <div className="text-center space-y-3">
+                          <div className="relative">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                            <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping"></div>
+                          </div>
+                          <p className="text-sm font-medium text-primary">Uploading main image...</p>
+                          <div className="w-32 h-1 bg-muted rounded-full mx-auto overflow-hidden">
+                            <div className="h-full bg-primary rounded-full animate-pulse"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <FileUpload
+                        onFileSelect={(file) => handleImageUpload(file, 'main')}
+                        disabled={uploading}
+                        showPreview={true}
+                        currentImage={formData.main_image}
+                        onRemove={() => setFormData(prev => ({ ...prev, main_image: '' }))}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Gallery Images */}
+                <div className="space-y-4">
+                  <Label>Gallery Images (Optional)</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {formData.gallery_images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        {uploading && uploadingIndex === index ? (
+                          <div className="w-full h-32 border-2 border-dashed border-primary rounded-lg flex items-center justify-center bg-primary/5">
+                            <div className="text-center space-y-2">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                              <p className="text-xs text-primary font-medium">Replacing...</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-32 border rounded-lg overflow-hidden transition-all duration-200 hover:scale-105">
+                            <img
+                              src={image}
+                              alt={`Gallery image ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                              <div className="flex gap-1">
+                                <FileUpload
+                                  onFileSelect={(file) => replaceGalleryImage(file, index)}
+                                  disabled={uploading}
+                                >
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="no-transition"
+                                  >
+                                    Replace
+                                  </Button>
+                                </FileUpload>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => removeGalleryImage(index)}
+                                  className="no-transition"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {formData.gallery_images.length < 6 && (
+                      <div className="relative">
+                        {uploading && uploadingIndex === -1 ? (
+                          <div className="w-full h-32 border-2 border-dashed border-primary rounded-lg flex items-center justify-center bg-primary/5">
+                            <div className="text-center space-y-2">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                              <p className="text-xs text-primary font-medium">Adding...</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <FileUpload
+                            onFileSelect={(file) => {
+                              setUploadingIndex(-1)
+                              handleImageUpload(file, 'gallery')
+                            }}
+                            disabled={uploading}
+                            className="w-full h-32"
+                          >
+                            <div className="w-full h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all duration-200 hover:scale-105 hover:bg-primary/5">
+                              <div className="text-center">
+                                <Plus className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                                <p className="text-xs text-muted-foreground">
+                                  Add Image
+                                </p>
+                              </div>
+                            </div>
+                          </FileUpload>
+                        )}
                       </div>
                     )}
-                    <div>
-                      <Label htmlFor="image">Update Main Image</Label>
-                      <Input
-                        id="image"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="mt-2"
-                      />
-                      {formData.image && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          New image selected: {formData.image.name}
-                        </div>
-                      )}
-                    </div>
+                  </div>
+                </div>
 
-                    <div>
-                      <Label htmlFor="gallery">Add Gallery Images</Label>
-                      <Input
-                        id="gallery"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleGalleryUpload}
-                        className="mt-2"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Select multiple images to add to the gallery
+                <div className="flex justify-between">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={prevStep} 
+                    className="no-transition transition-all duration-200 hover:scale-105"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceedToStep3}
+                    className="no-transition transition-all duration-200 hover:scale-105"
+                  >
+                    Next: Review Changes
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Step 3: Review */}
+        {currentStep === 3 && (
+          <div className="animate-in slide-in-from-right-5 duration-300">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Review Changes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <Label className="text-sm text-muted-foreground">Product Name</Label>
+                      <p className="font-medium">{formData.name}</p>
+                    </div>
+                    
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <Label className="text-sm text-muted-foreground">Category</Label>
+                      <p className="font-medium">
+                        {categories.find(c => c.id.toString() === formData.category_id)?.name}
                       </p>
                     </div>
-
-                    {formData.gallery.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>New Gallery Images ({formData.gallery.length})</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {formData.gallery.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 border rounded">
-                              <span className="text-sm truncate">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeGalleryImage(index)}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                ×
-                              </Button>
+                    
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <Label className="text-sm text-muted-foreground">Price</Label>
+                      <p className="font-medium text-lg">₹{formData.price}</p>
+                    </div>
+                    
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <Label className="text-sm text-muted-foreground">Stock Quantity</Label>
+                      <p className="font-medium">{formData.stock_quantity || 0}</p>
+                    </div>
+                    
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <Label className="text-sm text-muted-foreground">Status</Label>
+                      <Badge variant={formData.is_active ? "default" : "secondary"} className="mt-1">
+                        {formData.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <Label className="text-sm text-muted-foreground">Description</Label>
+                      <p className="text-sm mt-1">{formData.description}</p>
+                    </div>
+                    
+                    {formData.main_image && (
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <Label className="text-sm text-muted-foreground">Main Image</Label>
+                        <div className="w-32 h-32 border rounded-lg overflow-hidden mt-2 transition-all duration-200 hover:scale-105">
+                          <img
+                            src={formData.main_image}
+                            alt="Main product image"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {formData.gallery_images.length > 0 && (
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <Label className="text-sm text-muted-foreground">
+                          Gallery Images ({formData.gallery_images.length})
+                        </Label>
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {formData.gallery_images.slice(0, 4).map((image, index) => (
+                            <div key={index} className="w-16 h-16 border rounded overflow-hidden transition-all duration-200 hover:scale-110">
+                              <img
+                                src={image}
+                                alt={`Gallery ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                           ))}
+                          {formData.gallery_images.length > 4 && (
+                            <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
+                              <span className="text-xs text-muted-foreground font-medium">
+                                +{formData.gallery_images.length - 4}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Product Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="isActive">Active</Label>
-                    <Switch
-                      id="isActive"
-                      checked={formData.isActive}
-                      onCheckedChange={(checked) => handleInputChange('isActive', checked)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="isFeatured">Featured/Trending</Label>
-                    <Switch
-                      id="isFeatured"
-                      checked={formData.isFeatured}
-                      onCheckedChange={(checked) => handleInputChange('isFeatured', checked)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Ratings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="rating">Rating (0-5)</Label>
-                    <Input
-                      id="rating"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="5"
-                      value={formData.rating}
-                      onChange={(e) => handleInputChange('rating', e.target.value)}
-                      placeholder="4.8"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="reviewCount">Review Count</Label>
-                    <Input
-                      id="reviewCount"
-                      type="number"
-                      value={formData.reviewCount}
-                      onChange={(e) => handleInputChange('reviewCount', e.target.value)}
-                      placeholder="234"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Button type="submit" className="w-full" disabled={saving}>
-                {saving ? (
-                  <LoadingSpinner className="h-4 w-4 mr-2" />
-                ) : (
-                  <>
-                    <FontAwesomeIcon icon={faSave} className="h-4 w-4 mr-2" />
-                    Update Product
-                  </>
-                )}
-              </Button>
-            </div>
+                <div className="flex justify-between">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={prevStep} 
+                    className="no-transition transition-all duration-200 hover:scale-105"
+                  >
+                    Previous
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={handleFinalSubmit}
+                    disabled={loading || uploading} 
+                    className="no-transition transition-all duration-200 hover:scale-105"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Updating Product...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Update Product
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </form>
+        )}
+      </div>
     </div>
   )
 }

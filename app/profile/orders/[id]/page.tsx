@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 import { 
   Package, 
   Calendar,
@@ -82,14 +83,20 @@ export default function OrderDetailPage() {
 
   const fetchOrderDetails = async (orderId: string) => {
     try {
+      console.log('🔍 Fetching order details for order ID:', orderId)
+      
       const userData = localStorage.getItem('user')
       if (!userData) {
+        console.log('❌ No user data in localStorage')
         setError('Please login to view order details')
         return
       }
 
       const user = JSON.parse(userData)
       const token = localStorage.getItem('token')
+      
+      console.log('👤 User data:', { id: user.id, email: user.email })
+      console.log('🔑 Token exists:', !!token)
       
       // Try with JWT token first, then fallback to userId query param
       let response = await fetch(`/api/orders/${orderId}`, {
@@ -98,19 +105,26 @@ export default function OrderDetailPage() {
         }
       })
       
+      console.log('📦 First API call response:', { ok: response.ok, status: response.status })
+      
       // If JWT fails, try with userId query param
       if (!response.ok && response.status === 401) {
+        console.log('🔄 JWT failed, trying with userId query param')
         response = await fetch(`/api/orders/${orderId}?userId=${user.id}`)
+        console.log('📦 Second API call response:', { ok: response.ok, status: response.status })
       }
       
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ Order data received:', data)
         setOrder(data.order)
       } else {
-        setError('Order not found or access denied')
+        const errorData = await response.json()
+        console.error('❌ Order API error:', errorData)
+        setError(`Order not found or access denied: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error fetching order details:', error)
+      console.error('❌ Error fetching order details:', error)
       setError('Failed to load order details')
     } finally {
       setLoading(false)
@@ -144,20 +158,60 @@ export default function OrderDetailPage() {
     if (!order) return
     
     try {
-      const response = await fetch(`/api/orders/${order.id}/invoice`)
+      const token = localStorage.getItem('token')
+      if (!token) {
+        toast.error('Please login to download invoice')
+        return
+      }
+
+      const response = await fetch(`/api/orders/${order.id}/invoice`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
       if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `invoice-${order.order_number}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+        // Get the HTML content
+        const htmlContent = await response.text()
+        
+        // Method 1: Try blob download first
+        try {
+          const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `invoice-${order.order_number}.html`
+          a.style.display = 'none'
+          
+          document.body.appendChild(a)
+          a.click()
+          
+          setTimeout(() => {
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+          }, 100)
+          
+          toast.success('Invoice downloaded successfully!')
+        } catch (blobError) {
+          // Method 2: Fallback to new window
+          console.log('Blob download failed, trying new window method')
+          const newWindow = window.open('', '_blank')
+          if (newWindow) {
+            newWindow.document.write(htmlContent)
+            newWindow.document.close()
+            newWindow.print()
+            toast.success('Invoice opened in new window!')
+          } else {
+            toast.error('Please allow popups to download invoice')
+          }
+        }
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.error || 'Failed to download invoice')
       }
     } catch (error) {
       console.error('Error downloading invoice:', error)
+      toast.error('Failed to download invoice')
     }
   }
 

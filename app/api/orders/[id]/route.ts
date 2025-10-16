@@ -8,6 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    console.log('🔍 Order details API called for order ID:', id)
     
     // Try to get user ID from authorization header first
     let userId = null
@@ -18,8 +19,9 @@ export async function GET(
         const token = authHeader.substring(7)
         const decoded = jwt.verify(token, process.env.JWT_SECRET || '6dbff0f37cbebbe9bf17c43548c40d382c9000d31537f76f601b16955e3c628e70d4f30cb60993f2690665a7b6b4745951dd8e24029b196f69cdb0d1815cc11b') as any
         userId = decoded.userId
+        console.log('✅ JWT verification successful, user ID:', userId)
       } catch (jwtError) {
-        console.log('JWT verification failed, trying alternative method')
+        console.log('❌ JWT verification failed, trying alternative method')
       }
     }
     
@@ -27,31 +29,40 @@ export async function GET(
     if (!userId) {
       const { searchParams } = new URL(request.url)
       userId = searchParams.get('userId')
+      console.log('🔄 Using userId from query params:', userId)
     }
     
     if (!userId) {
+      console.log('❌ No user ID found')
       return NextResponse.json({ error: 'User authentication required' }, { status: 401 })
     }
 
+    console.log('🔍 Querying orders for order ID:', id, 'user ID:', userId)
     const orders = await query(
-      'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+      'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
       [id, userId]
     ) as any[]
 
+    console.log('📦 Orders found:', orders.length)
     if (orders.length === 0) {
+      console.log('❌ No orders found for this user and order ID')
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
     const order = orders[0]
+    console.log('✅ Order found:', { id: order.id, order_number: order.order_number, status: order.status })
 
     // Get order items
+    console.log('🔍 Fetching order items for order ID:', id)
     const orderItems = await query(
       `SELECT oi.*, p.image 
        FROM order_items oi 
        LEFT JOIN products p ON oi.product_id = p.id 
-       WHERE oi.order_id = ?`,
+       WHERE oi.order_id = $1`,
       [id]
     ) as any[]
+
+    console.log('🛍️ Order items found:', orderItems.length)
 
     return NextResponse.json({
       success: true,

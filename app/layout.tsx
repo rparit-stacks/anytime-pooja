@@ -9,6 +9,7 @@ import "./globals.css"
 import { AstrologyBackground } from "@/components/astrology-background"
 import { BackgroundDiagonalMarquee } from "@/components/background-diagonal-marquee"
 import { PageTransition } from "@/components/page-transition"
+import { Toaster } from "@/components/ui/toaster"
 
 const robotoSlab = Roboto_Slab({ subsets: ["latin"], variable: "--font-roboto-slab" })
 
@@ -34,6 +35,7 @@ export default function RootLayout({
               <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
             </PageTransition>
           </CartProvider>
+          <Toaster />
           <Analytics />
         </div>
       </body>

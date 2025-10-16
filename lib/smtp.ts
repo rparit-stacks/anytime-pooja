@@ -56,8 +56,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       subject: options.subject,
       html: options.html || options.text,
       text: options.text,
-      from: options.from || process.env.SMTP_FROM_EMAIL || 'noreply@anytimepooja.com',
-      replyTo: options.replyTo || process.env.SMTP_FROM_EMAIL || 'noreply@anytimepooja.com'
+      from: options.from || process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || 'noreply@anytimepooja.com',
+      replyTo: options.replyTo || process.env.SMTP_FROM_EMAIL || process.env.SMTP_USERNAME || 'noreply@anytimepooja.com'
     }
 
     // Import nodemailer dynamically
@@ -140,16 +140,17 @@ export async function sendOrderConfirmationEmail(order: any, orderItems: any[]):
   const itemsHtml = orderItems.map(item => `
     <tr>
       <td style="padding: 10px; border-bottom: 1px solid #eee;">
-        <strong>${item.product_name}</strong>
+        <strong>${item.name || item.product_name || 'Product'}</strong>
+        ${item.id ? `<br><small style="color: #666;">Product ID: ${item.id}</small>` : ''}
       </td>
       <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">
-        ${item.quantity}
+        ${item.quantity || 1}
       </td>
       <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
-        ₹${item.product_price}
+        ₹${item.price || item.product_price || 0}
       </td>
       <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
-        ₹${item.total_price}
+        ₹${(item.price || item.product_price || 0) * (item.quantity || 1)}
       </td>
     </tr>
   `).join('')
@@ -163,8 +164,14 @@ export async function sendOrderConfirmationEmail(order: any, orderItems: any[]):
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
         <h3>Order Details:</h3>
         <p><strong>Order Number:</strong> #${order.order_number}</p>
+        <p><strong>Customer Name:</strong> ${order.first_name} ${order.last_name}</p>
+        <p><strong>Customer Email:</strong> ${order.email}</p>
         <p><strong>Order Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</p>
         <p><strong>Payment Status:</strong> ${order.payment_status}</p>
+        <p><strong>Payment Method:</strong> ${order.payment_method || 'Razorpay'}</p>
+        <p><strong>Subtotal:</strong> ₹${order.subtotal || order.total_amount}</p>
+        <p><strong>Shipping:</strong> ₹${order.shipping_cost || 0}</p>
+        <p><strong>Tax:</strong> ₹${order.tax || 0}</p>
         <p><strong>Total Amount:</strong> ₹${order.total_amount}</p>
       </div>
 
@@ -226,6 +233,70 @@ export async function sendVerificationEmail(userEmail: string, userName: string,
       <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
       <p>This verification link will expire in 24 hours.</p>
       <p>If you didn't create an account with us, please ignore this email.</p>
+      <p>Best regards,<br>The Anytime Pooja Team</p>
+    </div>
+  `
+  
+  return await sendEmail({
+    to: userEmail,
+    subject,
+    html
+  })
+}
+
+export async function sendPaymentFailureEmail(userEmail: string, userName: string, orderData: any, errorMessage: string): Promise<boolean> {
+  const subject = `Payment Failed - Order #${orderData.order_number || 'N/A'}`
+  const displayName = userName || 'Customer'
+  
+  console.log('Payment failure email sending attempt:', {
+    userEmail,
+    userName,
+    order_number: orderData.order_number,
+    errorMessage
+  })
+  
+  // Validate email address
+  if (!userEmail) {
+    console.error('❌ No email address found for payment failure notification')
+    return false
+  }
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #dc2626;">Payment Failed</h1>
+      <p>Dear ${displayName},</p>
+      <p>We're sorry to inform you that your payment for order #${orderData.order_number || 'N/A'} could not be processed.</p>
+      
+      <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <h3 style="color: #dc2626; margin-top: 0;">Payment Details</h3>
+        <p><strong>Order Number:</strong> ${orderData.order_number || 'N/A'}</p>
+        <p><strong>Customer Name:</strong> ${orderData.first_name || ''} ${orderData.last_name || ''}</p>
+        <p><strong>Customer Email:</strong> ${orderData.email || 'N/A'}</p>
+        <p><strong>Amount:</strong> ₹${orderData.total_amount || orderData.total || 'N/A'}</p>
+        <p><strong>Payment Method:</strong> ${orderData.payment_method || 'Razorpay'}</p>
+        <p><strong>Error:</strong> ${errorMessage}</p>
+        <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+      </div>
+      
+      <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <h3 style="color: #0369a1; margin-top: 0;">What's Next?</h3>
+        <p>Don't worry! Your order has been saved and you can retry the payment:</p>
+        <ul>
+          <li>Check your payment method details</li>
+          <li>Ensure sufficient funds are available</li>
+          <li>Try using a different payment method</li>
+          <li>Contact your bank if the issue persists</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/checkout" 
+           style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Retry Payment
+        </a>
+      </div>
+      
+      <p>If you continue to experience issues, please contact our support team.</p>
       <p>Best regards,<br>The Anytime Pooja Team</p>
     </div>
   `

@@ -68,6 +68,8 @@ function CheckoutPageContent() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [progressStep, setProgressStep] = useState(0)
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<number | null>(null)
   const [selectedShippingAddress, setSelectedShippingAddress] = useState<number | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<number | null>(null)
@@ -201,6 +203,8 @@ function CheckoutPageContent() {
 
   const handleRazorpayPayment = async (orderData: any) => {
     try {
+      setProcessing(true)
+      setProgressStep(0)
       // Create Razorpay order
       const response = await fetch('/api/payment/create-order', {
         method: 'POST',
@@ -228,6 +232,8 @@ function CheckoutPageContent() {
         order_id: razorpayOrder.order.id,
         handler: async function (response: any) {
           try {
+            // Keep processing state true during verification
+            setProgressStep(1) // Payment received
             // Verify payment
             const verifyResponse = await fetch('/api/payment/verify', {
               method: 'POST',
@@ -242,18 +248,80 @@ function CheckoutPageContent() {
               })
             })
 
+            setProgressStep(2) // Verifying payment
             const verifyResult = await verifyResponse.json()
             if (verifyResult.success) {
+              setProgressStep(3) // Creating order
               toast.success('Payment successful! Order placed.')
               clearCart()
-              router.push(`/checkout/success?order_id=${verifyResult.order_id}`)
+              
+              // Small delay to show order creation step
+              setTimeout(() => {
+                setProgressStep(4) // Sending confirmation
+                setPaymentSuccess(true)
+              }, 1000)
+              
+              // Show success message for a moment before redirecting
+              setTimeout(() => {
+                setProcessing(false)
+                setPaymentSuccess(false)
+                setProgressStep(0)
+                router.push(`/checkout/success?order_id=${verifyResult.order_id}`)
+              }, 4000)
             } else {
               toast.error('Payment verification failed')
+              // Send payment failure email
+              try {
+                await fetch('/api/payment/failure', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    userEmail: order_data.email || user?.email || '',
+                    userName: `${order_data.first_name || user?.first_name || ''} ${order_data.last_name || user?.last_name || ''}`,
+                    orderData: {
+                      ...order_data,
+                      order_number: response.razorpay_order_id,
+                      total_amount: order_data.total
+                    },
+                    errorMessage: 'Payment verification failed'
+                  })
+                })
+              } catch (emailError) {
+                console.error('Failed to send payment failure email:', emailError)
+              }
+              setProcessing(false)
+              setProgressStep(0)
               router.push(`/checkout/failed?error=Payment verification failed&order_id=${response.razorpay_order_id}`)
             }
           } catch (error) {
             console.error('Payment verification error:', error)
             toast.error('Payment verification failed')
+            setProcessing(false)
+            // Send payment failure email
+            try {
+              await fetch('/api/payment/failure', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userEmail: order_data.email || user?.email || '',
+                  userName: `${order_data.first_name || user?.first_name || ''} ${order_data.last_name || user?.last_name || ''}`,
+                  orderData: {
+                    ...order_data,
+                    order_number: 'N/A',
+                    total_amount: order_data.total
+                  },
+                  errorMessage: 'Payment verification error: ' + (error instanceof Error ? error.message : 'Unknown error')
+                })
+              })
+            } catch (emailError) {
+              console.error('Failed to send payment failure email:', emailError)
+            }
+            setProcessing(false)
+            setProgressStep(0)
             router.push(`/checkout/failed?error=Payment verification failed&order_id=${response.razorpay_order_id}`)
           }
         },
@@ -272,6 +340,29 @@ function CheckoutPageContent() {
     } catch (error) {
       console.error('Razorpay payment error:', error)
       toast.error('Payment failed. Please try again.')
+      setProcessing(false)
+      setProgressStep(0)
+      // Send payment failure email
+      try {
+        await fetch('/api/payment/failure', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userEmail: orderData.email || user?.email || '',
+            userName: `${orderData.first_name || user?.first_name || ''} ${orderData.last_name || user?.last_name || ''}`,
+            orderData: {
+              ...orderData,
+              order_number: 'N/A',
+              total_amount: orderData.total
+            },
+            errorMessage: 'Payment initialization failed: ' + (error instanceof Error ? error.message : 'Unknown error')
+          })
+        })
+      } catch (emailError) {
+        console.error('Failed to send payment failure email:', emailError)
+      }
       router.push(`/checkout/failed?error=Payment initialization failed`)
     }
   }
@@ -301,6 +392,9 @@ function CheckoutPageContent() {
 
       const orderData = {
         user_id: user?.id,
+        email: user?.email,
+        first_name: user?.first_name,
+        last_name: user?.last_name,
         items: items,
         billing_address_id: selectedBillingAddress,
         shipping_address_id: selectedShippingAddress,
@@ -348,6 +442,80 @@ function CheckoutPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Payment Processing Overlay */}
+      {processing && !paymentSuccess && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-10 max-w-lg mx-4 text-center shadow-2xl border border-gray-100">
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-primary border-t-transparent mx-auto mb-8"></div>
+            <h3 className="text-2xl font-bold mb-4 text-gray-800">Processing Your Payment</h3>
+            <p className="text-gray-600 mb-8 text-lg">Please wait while we complete your order...</p>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-8">
+              <div 
+                className="bg-gradient-to-r from-primary to-green-500 h-3 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${(progressStep / 4) * 100}%` }}
+              ></div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className={`flex items-center justify-center space-x-4 text-base ${progressStep >= 1 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-4 h-4 rounded-full ${progressStep >= 1 ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <span className="font-semibold">Payment received</span>
+              </div>
+              <div className={`flex items-center justify-center space-x-4 text-base ${progressStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
+                <div className={`w-4 h-4 rounded-full ${progressStep >= 2 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <span className="font-semibold">Verifying payment</span>
+              </div>
+              <div className={`flex items-center justify-center space-x-4 text-base ${progressStep >= 3 ? 'text-purple-600' : 'text-gray-400'}`}>
+                <div className={`w-4 h-4 rounded-full ${progressStep >= 3 ? 'bg-purple-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <span className="font-semibold">Creating order</span>
+              </div>
+              <div className={`flex items-center justify-center space-x-4 text-base ${progressStep >= 4 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-4 h-4 rounded-full ${progressStep >= 4 ? 'bg-orange-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <span className="font-semibold">Sending confirmation</span>
+              </div>
+            </div>
+            
+            <div className="mt-8 text-sm text-gray-500 bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                <span>This may take a few moments...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Success Overlay */}
+      {processing && paymentSuccess && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-10 max-w-lg mx-4 text-center shadow-2xl border border-green-100">
+            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+              <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-3xl font-bold mb-4 text-green-600">Payment Successful!</h3>
+            <p className="text-gray-600 mb-8 text-lg">Your order has been placed successfully.</p>
+            
+            <div className="bg-green-50 rounded-xl p-6 mb-8 border border-green-200">
+              <div className="flex items-center justify-center space-x-3 text-base text-green-700">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="font-semibold">Redirecting to confirmation page...</span>
+              </div>
+            </div>
+            
+            <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce"></div>
+                <span>You will be redirected automatically</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">Checkout</h1>

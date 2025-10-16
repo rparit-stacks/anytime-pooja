@@ -19,7 +19,7 @@ export async function GET(
 
     // Get order details
     const orders = await query(
-      'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+      'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
       [id, decoded.userId]
     ) as any[]
 
@@ -34,7 +34,7 @@ export async function GET(
       `SELECT oi.*, p.image 
        FROM order_items oi 
        LEFT JOIN products p ON oi.product_id = p.id 
-       WHERE oi.order_id = ?`,
+       WHERE oi.order_id = $1`,
       [id]
     ) as any[]
 
@@ -43,8 +43,11 @@ export async function GET(
 
     return new NextResponse(invoiceHtml, {
       headers: {
-        'Content-Type': 'text/html',
-        'Content-Disposition': `attachment; filename="invoice-${order.order_number}.html"`
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': `attachment; filename="invoice-${order.order_number}.html"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     })
 

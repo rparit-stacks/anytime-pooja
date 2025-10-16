@@ -96,18 +96,43 @@ export default function CheckoutSuccessPage() {
       })
 
       if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `invoice-${order?.order_number || 'order'}.html`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        toast.success('Invoice downloaded successfully!')
+        // Get the HTML content
+        const htmlContent = await response.text()
+        
+        // Method 1: Try blob download first
+        try {
+          const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `invoice-${order?.order_number || 'order'}.html`
+          a.style.display = 'none'
+          
+          document.body.appendChild(a)
+          a.click()
+          
+          setTimeout(() => {
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+          }, 100)
+          
+          toast.success('Invoice downloaded successfully!')
+        } catch (blobError) {
+          // Method 2: Fallback to new window
+          console.log('Blob download failed, trying new window method')
+          const newWindow = window.open('', '_blank')
+          if (newWindow) {
+            newWindow.document.write(htmlContent)
+            newWindow.document.close()
+            newWindow.print()
+            toast.success('Invoice opened in new window!')
+          } else {
+            toast.error('Please allow popups to download invoice')
+          }
+        }
       } else {
-        toast.error('Failed to download invoice')
+        const errorData = await response.json()
+        toast.error(errorData.error || 'Failed to download invoice')
       }
     } catch (error) {
       console.error('Error downloading invoice:', error)

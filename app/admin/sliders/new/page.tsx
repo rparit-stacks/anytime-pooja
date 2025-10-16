@@ -1,223 +1,334 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Upload, Save } from "lucide-react"
+import { FileUpload } from "@/components/ui/file-upload"
+import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+
+interface SliderFormData {
+  title: string
+  subtitle: string
+  cta_text: string
+  cta_link: string
+  image: string
+  is_active: boolean
+  sort_order: number
+}
 
 export default function NewSliderPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    title: "",
-    subtitle: "",
-    cta: "",
-    link: "",
-    isActive: true,
-    sortOrder: "1",
-    image: null as File | null
+  const [uploading, setUploading] = useState(false)
+
+  const [formData, setFormData] = useState<SliderFormData>({
+    title: '',
+    subtitle: '',
+    cta_text: 'Shop Now',
+    cta_link: '/products',
+    image: '',
+    is_active: true,
+    sort_order: 0
   })
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        image: file
-      }))
+  const handleImageUpload = async (file: File) => {
+    try {
+      setUploading(true)
+      
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'sliders')
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setFormData(prev => ({
+          ...prev,
+          image: data.url
+        }))
+        
+        toast({
+          title: "Success",
+          description: "Image uploaded successfully"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to upload image",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive"
+      })
+    } finally {
+      setUploading(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    
+    // Validation
+    if (!formData.title.trim()) {
+      toast({
+        title: "Error",
+        description: "Title is required",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.cta_text.trim()) {
+      toast({
+        title: "Error",
+        description: "CTA text is required",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.cta_link.trim()) {
+      toast({
+        title: "Error",
+        description: "CTA link is required",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.image.trim()) {
+      toast({
+        title: "Error",
+        description: "Image is required",
+        variant: "destructive"
+      })
+      return
+    }
 
     try {
-      const formDataToSend = new FormData()
+      setLoading(true)
       
-      // Add all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== 'image' && value !== null) {
-          formDataToSend.append(key, value.toString())
-        }
-      })
-
-      // Add image if selected
-      if (formData.image) {
-        formDataToSend.append('image', formData.image)
-      }
-
       const response = await fetch('/api/admin/sliders', {
         method: 'POST',
-        body: formDataToSend
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
       })
-
-      if (response.ok) {
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Slider created successfully"
+        })
         router.push('/admin/sliders')
       } else {
-        console.error('Error creating slider')
+        toast({
+          title: "Error",
+          description: data.error || "Failed to create slider",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       console.error('Error creating slider:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create slider",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link href="/admin/sliders">
+          <Button variant="ghost" size="sm" className="no-transition">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Sliders
+          </Button>
+        </Link>
         <div>
-          <div className="flex items-center gap-4 mb-4">
-            <Link href="/admin/sliders">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Sliders
-              </Button>
-            </Link>
-          </div>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-balance">
-            Add New Slider
-          </h1>
+          <h1 className="text-3xl font-bold">Create New Slider</h1>
           <p className="text-muted-foreground">
-            Create a new hero slider banner
+            Add a new slider to your homepage hero section
           </p>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Form */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Slider Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="title">Title *</Label>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Form */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Slider Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter slider title"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subtitle">Subtitle</Label>
+                  <Textarea
+                    id="subtitle"
+                    value={formData.subtitle}
+                    onChange={(e) => setFormData(prev => ({ ...prev, subtitle: e.target.value }))}
+                    placeholder="Enter slider subtitle"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cta_text">CTA Text *</Label>
                     <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => handleInputChange('title', e.target.value)}
-                      placeholder="e.g., Sacred Mandir Collection"
+                      id="cta_text"
+                      value={formData.cta_text}
+                      onChange={(e) => setFormData(prev => ({ ...prev, cta_text: e.target.value }))}
+                      placeholder="e.g., Shop Now, Learn More"
                       required
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="subtitle">Subtitle</Label>
-                    <Textarea
-                      id="subtitle"
-                      value={formData.subtitle}
-                      onChange={(e) => handleInputChange('subtitle', e.target.value)}
-                      placeholder="e.g., Beautiful idols, bells, and temple essentials for your home"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="cta">CTA Text *</Label>
-                      <Input
-                        id="cta"
-                        value={formData.cta}
-                        onChange={(e) => handleInputChange('cta', e.target.value)}
-                        placeholder="e.g., Explore Mandir"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="link">CTA Link *</Label>
-                      <Input
-                        id="link"
-                        value={formData.link}
-                        onChange={(e) => handleInputChange('link', e.target.value)}
-                        placeholder="e.g., /products?category=mandir"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="sortOrder">Sort Order</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="cta_link">CTA Link *</Label>
                     <Input
-                      id="sortOrder"
-                      type="number"
-                      value={formData.sortOrder}
-                      onChange={(e) => handleInputChange('sortOrder', e.target.value)}
-                      placeholder="1"
+                      id="cta_link"
+                      value={formData.cta_link}
+                      onChange={(e) => setFormData(prev => ({ ...prev, cta_link: e.target.value }))}
+                      placeholder="e.g., /products, /about"
+                      required
                     />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Slider Image</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="image">Upload Image *</Label>
-                      <Input
-                        id="image"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="mt-2"
-                        required
-                      />
-                    </div>
-                    {formData.image && (
-                      <div className="text-sm text-muted-foreground">
-                        Selected: {formData.image.name}
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground">
-                      Recommended size: 1920x600px or similar aspect ratio
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Slider Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="isActive">Active</Label>
-                    <Switch
-                      id="isActive"
-                      checked={formData.isActive}
-                      onCheckedChange={(checked) => handleInputChange('isActive', checked)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Creating...' : 'Create Slider'}
-              </Button>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sort_order">Sort Order</Label>
+                  <Input
+                    id="sort_order"
+                    type="number"
+                    value={formData.sort_order}
+                    onChange={(e) => setFormData(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
+                    placeholder="0"
+                    min="0"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Lower numbers appear first in the slider
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </form>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Image Upload */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Slider Image</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <FileUpload
+                    onFileSelect={handleImageUpload}
+                    disabled={uploading}
+                    showPreview={true}
+                    currentImage={formData.image}
+                    onRemove={() => setFormData(prev => ({ ...prev, image: '' }))}
+                    accept="image/*"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Recommended size: 1920x700px or similar aspect ratio
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Active Status</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Show this slider on the homepage
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <Button 
+                    type="submit" 
+                    className="w-full no-transition"
+                    disabled={loading || uploading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Create Slider
+                      </>
+                    )}
+                  </Button>
+                  <Link href="/admin/sliders" className="block">
+                    <Button variant="outline" className="w-full no-transition">
+                      Cancel
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </form>
     </div>
   )
 }

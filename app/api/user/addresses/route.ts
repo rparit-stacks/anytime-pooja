@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const addresses = await query(
-      'SELECT * FROM user_addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC',
+      'SELECT * FROM user_addresses WHERE user_id = $1 ORDER BY is_default DESC, created_at DESC',
       [userId]
     ) as any[]
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // If this is set as default, unset other default addresses of the same type
     if (is_default) {
       await query(
-        'UPDATE user_addresses SET is_default = false WHERE user_id = ? AND type = ?',
+        'UPDATE user_addresses SET is_default = false WHERE user_id = $1 AND type = $2',
         [user_id, type]
       )
     }
@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
       `INSERT INTO user_addresses (
         user_id, type, first_name, last_name, company,
         address_line_1, address_line_2, city, state, postal_code, country, phone, is_default
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
       [user_id, type, first_name, last_name, company || '', address_line_1, address_line_2 || '', city, state, postal_code, country, phone || '', is_default]
     ) as any
 
     return NextResponse.json({
       success: true,
-      addressId: result.insertId,
+      addressId: result[0]?.id,
       message: 'Address added successfully'
     })
 

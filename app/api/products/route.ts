@@ -84,12 +84,23 @@ export async function GET(req: Request) {
 
     console.log('Transformed products:', transformedProducts.length, transformedProducts)
     const response = NextResponse.json({ products: transformedProducts })
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
+    
+    // Optimized caching headers
+    response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=300') // 5 minutes cache
+    response.headers.set('ETag', `"products-${Date.now()}"`)
+    response.headers.set('Vary', 'Accept-Encoding')
+    
     return response
   } catch (error) {
     console.error('Database error:', error)
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to fetch products',
+      products: [] // Return empty array as fallback
+    }, { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
   }
 }

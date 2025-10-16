@@ -103,28 +103,36 @@ export default function ProfilePage() {
 
   const fetchDashboardStats = async (userId: number) => {
     try {
+      console.log('📊 Fetching dashboard stats for user ID:', userId)
+      
       // Fetch orders count
       const ordersResponse = await fetch(`/api/user/orders?userId=${userId}`)
       const ordersData = await ordersResponse.json()
+      console.log('📦 Orders response:', { ok: ordersResponse.ok, data: ordersData })
       
       // Fetch addresses count
       const addressesResponse = await fetch(`/api/user/addresses?userId=${userId}`)
       const addressesData = await addressesResponse.json()
+      console.log('📍 Addresses response:', { ok: addressesResponse.ok, data: addressesData })
       
       // Fetch wishlist count
       const wishlistResponse = await fetch(`/api/user/wishlist?userId=${userId}`)
       const wishlistData = await wishlistResponse.json()
+      console.log('❤️ Wishlist response:', { ok: wishlistResponse.ok, data: wishlistData })
 
-      setStats({
+      const newStats = {
         totalOrders: ordersData.orders?.length || 0,
         pendingOrders: ordersData.orders?.filter((order: any) => 
           ['pending', 'processing'].includes(order.status)
         ).length || 0,
         totalAddresses: addressesData.addresses?.length || 0,
         wishlistItems: wishlistData.wishlist?.length || 0
-      })
+      }
+      
+      console.log('📊 Setting stats:', newStats)
+      setStats(newStats)
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error)
+      console.error('❌ Error fetching dashboard stats:', error)
     }
   }
 

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         o.estimated_delivery,
         o.tracking_number
       FROM orders o
-      WHERE o.user_id = ?
+      WHERE o.user_id = $1
       ORDER BY o.created_at DESC
     `, [userId]) as any[]
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
             quantity,
             total_price
           FROM order_items
-          WHERE order_id = ?
+          WHERE order_id = $1
         `, [order.id]) as any[]
 
         return {

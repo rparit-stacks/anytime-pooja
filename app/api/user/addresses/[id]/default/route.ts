@@ -14,7 +14,7 @@ export async function PUT(
 
     // Get address details
     const addresses = await query(
-      'SELECT user_id, type FROM user_addresses WHERE id = ?',
+      'SELECT user_id, type FROM user_addresses WHERE id = $1',
       [addressId]
     ) as any[]
 
@@ -26,13 +26,13 @@ export async function PUT(
 
     // Unset other default addresses of same type
     await query(
-      'UPDATE user_addresses SET is_default = false WHERE user_id = ? AND type = ?',
+      'UPDATE user_addresses SET is_default = false WHERE user_id = $1 AND type = $2',
       [user_id, type]
     )
 
     // Set this address as default
     await query(
-      'UPDATE user_addresses SET is_default = true WHERE id = ?',
+      'UPDATE user_addresses SET is_default = true WHERE id = $1',
       [addressId]
     )
 

@@ -43,17 +43,27 @@ export default function AddressesPage() {
   const fetchAddresses = async () => {
     try {
       const userData = localStorage.getItem('user')
-      if (!userData) return
+      if (!userData) {
+        console.log('❌ No user data in localStorage')
+        return
+      }
 
       const user = JSON.parse(userData)
+      console.log('👤 Fetching addresses for user:', user)
+      
       const response = await fetch(`/api/user/addresses?userId=${user.id}`)
       const data = await response.json()
       
+      console.log('📍 Address API response:', { response: response.ok, data })
+      
       if (response.ok) {
         setAddresses(data.addresses || [])
+        console.log('✅ Addresses set:', data.addresses)
+      } else {
+        console.error('❌ Address API error:', data)
       }
     } catch (error) {
-      console.error('Error fetching addresses:', error)
+      console.error('❌ Error fetching addresses:', error)
     } finally {
       setLoading(false)
     }

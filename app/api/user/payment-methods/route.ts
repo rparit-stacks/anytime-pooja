@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     const paymentMethods = await query(
-      'SELECT * FROM user_payment_methods WHERE user_id = ? AND is_active = true ORDER BY is_default DESC, created_at DESC',
+      'SELECT * FROM user_payment_methods WHERE user_id = $1 AND is_active = true ORDER BY is_default DESC, created_at DESC',
       [userId]
     ) as any[]
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     // If setting as default, unset other default payment methods
     if (is_default) {
       await query(
-        'UPDATE user_payment_methods SET is_default = false WHERE user_id = ?',
+        'UPDATE user_payment_methods SET is_default = false WHERE user_id = $1',
         [user_id]
       )
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO user_payment_methods 
        (user_id, payment_type, card_number, card_holder_name, expiry_month, expiry_year, 
         upi_id, wallet_type, bank_name, account_number, is_default) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         user_id, payment_type, card_number, card_holder_name, expiry_month, expiry_year,
         upi_id, wallet_type, bank_name, account_number, is_default

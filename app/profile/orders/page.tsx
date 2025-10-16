@@ -46,17 +46,27 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       const userData = localStorage.getItem('user')
-      if (!userData) return
+      if (!userData) {
+        console.log('❌ No user data in localStorage')
+        return
+      }
 
       const user = JSON.parse(userData)
+      console.log('👤 Fetching orders for user:', user)
+      
       const response = await fetch(`/api/user/orders?userId=${user.id}`)
       const data = await response.json()
       
+      console.log('📦 Orders API response:', { response: response.ok, data })
+      
       if (response.ok) {
         setOrders(data.orders || [])
+        console.log('✅ Orders set:', data.orders)
+      } else {
+        console.error('❌ Orders API error:', data)
       }
     } catch (error) {
-      console.error('Error fetching orders:', error)
+      console.error('❌ Error fetching orders:', error)
     } finally {
       setLoading(false)
     }

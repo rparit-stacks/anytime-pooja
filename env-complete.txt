@@ -13,3 +13,4 @@ SMTP_USERNAME=help@anytimepooja.in
 SMTP_PASSWORD=Anytimepooja@111288
 SMTP_FROM_NAME=Anytime Pooja
 SMTP_FROM_EMAIL=noreply@anytimepooja.com
+

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || '6dbff0f37cbebbe9bf17c43548c40d382c9000d31537f76f601b16955e3c628e70d4f30cb60993f2690665a7b6b4745951dd8e24029b196f69cdb0d1815cc11b') as any
 
     const users = await query(
-      'SELECT id, first_name, last_name, email, phone, is_active, email_verified FROM users WHERE id = ?',
+      'SELECT id, first_name, last_name, email, phone, is_active, email_verified FROM users WHERE id = $1',
       [decoded.userId]
     ) as any[]
 
