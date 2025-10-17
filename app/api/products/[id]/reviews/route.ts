@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         is_approved as isApproved,
         created_at as createdAt
       FROM reviews
-      WHERE product_id = ? AND is_approved = true
+      WHERE product_id = $1 AND is_approved = true
       ORDER BY created_at DESC
     `
     
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     
     const sql = `
       INSERT INTO reviews (product_id, user_name, user_email, rating, title, comment)
-      VALUES (?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6)
     `
     
     await queryDirect(sql, [id, userName, userEmail, rating, title, comment])

@@ -21,7 +21,7 @@ import {
   Share2,
   ArrowLeft
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import useSWR from "swr"
@@ -102,6 +102,24 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [isWishlisted, setIsWishlisted] = useState(false)
+
+  // Keyboard navigation for gallery
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (product?.gallery && product.gallery.length > 1) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          prevImage()
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          nextImage()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [product?.gallery])
 
   const discount = product?.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -224,12 +242,12 @@ export default function ProductDetailPage() {
                 />
                 
                 {/* Navigation arrows */}
-                {product.gallery.length > 1 && (
+                {product.gallery && product.gallery.length > 1 && (
                   <>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background backdrop-blur-sm"
                       onClick={prevImage}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -237,11 +255,16 @@ export default function ProductDetailPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background backdrop-blur-sm"
                       onClick={nextImage}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
+                    
+                    {/* Image counter */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
+                      {selectedImage + 1} / {product.gallery.length}
+                    </div>
                   </>
                 )}
 
@@ -261,26 +284,45 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Thumbnail images */}
-              {product.gallery.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto">
-                  {product.gallery.map((image: string, index: number) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                        selectedImage === index ? 'border-primary' : 'border-border'
-                      }`}
-                    >
-                      <img
-                        src={image || "/placeholder.svg"}
-                        alt={`${product.name} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = "/placeholder.svg"
-                        }}
-                      />
-                    </button>
-                  ))}
+              {product.gallery && product.gallery.length > 1 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-muted-foreground">Gallery Images</h3>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedImage + 1} of {product.gallery.length}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {product.gallery.map((image: string, index: number) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedImage(index)}
+                        className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-105 ${
+                          selectedImage === index 
+                            ? 'border-primary ring-2 ring-primary/20' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <img
+                          src={image || "/placeholder.svg"}
+                          alt={`${product.name} ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.svg"
+                          }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    {product.gallery && product.gallery.length === 1 
+                      ? 'Only main image available' 
+                      : 'No additional images available'
+                    }
+                  </p>
                 </div>
               )}
             </div>

@@ -29,8 +29,14 @@ export async function GET(
     // Parse gallery if it exists
     if (product.gallery) {
       try {
-        product.gallery = JSON.parse(product.gallery)
+        // If it's already an array, use it directly
+        if (Array.isArray(product.gallery)) {
+          // Already an array, no need to parse
+        } else if (typeof product.gallery === 'string') {
+          product.gallery = JSON.parse(product.gallery)
+        }
       } catch (e) {
+        console.error('Error parsing gallery:', e)
         product.gallery = []
       }
     } else {
@@ -205,8 +211,14 @@ export async function PATCH(
     // Parse gallery if it exists
     if (updatedProduct.gallery) {
       try {
-        updatedProduct.gallery = JSON.parse(updatedProduct.gallery)
+        // If it's already an array, use it directly
+        if (Array.isArray(updatedProduct.gallery)) {
+          // Already an array, no need to parse
+        } else if (typeof updatedProduct.gallery === 'string') {
+          updatedProduct.gallery = JSON.parse(updatedProduct.gallery)
+        }
       } catch (e) {
+        console.error('Error parsing gallery:', e)
         updatedProduct.gallery = []
       }
     } else {

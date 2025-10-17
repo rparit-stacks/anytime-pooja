@@ -17,6 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { FileUpload } from "@/components/ui/file-upload"
+import { MultiFileUpload } from "@/components/ui/multi-file-upload"
 import { 
   ArrowLeft, 
   X, 
@@ -24,7 +25,8 @@ import {
   Save,
   Eye,
   Package,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CheckCircle
 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -62,7 +64,10 @@ export default function NewProductPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1)
+  const [mainImageUploading, setMainImageUploading] = useState(false)
+  const [galleryImageUploading, setGalleryImageUploading] = useState(false)
+  const [mainImageSuccess, setMainImageSuccess] = useState(false)
+  const [galleryImageSuccess, setGalleryImageSuccess] = useState<boolean[]>([])
   
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -118,20 +123,33 @@ export default function NewProductPage() {
 
   const handleImageUpload = async (file: File, type: 'main' | 'gallery') => {
     try {
-      setUploading(true)
+      if (type === 'main') {
+        setMainImageUploading(true)
+      } else {
+        setGalleryImageUploading(true)
+      }
       
-      const data = await uploadFile(file, 'product', 'anytime-pooja')
+      const imageUrl = await uploadFile(file, 'product', 'anytime-pooja')
+      console.log('Upload response:', imageUrl)
       
       if (type === 'main') {
         setFormData(prev => ({
           ...prev,
-          main_image: data.url
+          main_image: imageUrl
         }))
+        setMainImageSuccess(true)
+        setTimeout(() => setMainImageSuccess(false), 2000)
+        console.log('Main image set to:', imageUrl)
       } else {
         setFormData(prev => ({
           ...prev,
-          gallery_images: [...prev.gallery_images, data.url]
+          gallery_images: [...prev.gallery_images, imageUrl]
         }))
+        setGalleryImageSuccess(prev => [...prev, true])
+        setTimeout(() => {
+          setGalleryImageSuccess(prev => prev.slice(0, -1))
+        }, 2000)
+        console.log('Gallery image added:', imageUrl)
       }
       
       toast({
@@ -146,7 +164,62 @@ export default function NewProductPage() {
         variant: "destructive"
       })
     } finally {
-      setUploading(false)
+      if (type === 'main') {
+        setMainImageUploading(false)
+      } else {
+        setGalleryImageUploading(false)
+      }
+    }
+  }
+
+  const handleMultipleImageUpload = async (files: File[]) => {
+    if (files.length === 0) return
+    
+    const remainingSlots = 6 - formData.gallery_images.length
+    const filesToUpload = files.slice(0, remainingSlots)
+    
+    if (filesToUpload.length < files.length) {
+      toast({
+        title: "Warning",
+        description: `Only ${filesToUpload.length} images uploaded. Maximum 6 gallery images allowed.`,
+        variant: "destructive"
+      })
+    }
+    
+    try {
+      setGalleryImageUploading(true)
+      
+      const uploadPromises = filesToUpload.map(file => 
+        uploadFile(file, 'product', 'anytime-pooja')
+      )
+      
+      const imageUrls = await Promise.all(uploadPromises)
+      console.log('Multiple upload response:', imageUrls)
+      
+      setFormData(prev => ({
+        ...prev,
+        gallery_images: [...prev.gallery_images, ...imageUrls]
+      }))
+      
+      // Set success state for all new images
+      setGalleryImageSuccess(prev => [...prev, ...new Array(imageUrls.length).fill(true)])
+      setTimeout(() => {
+        setGalleryImageSuccess(prev => prev.slice(0, -imageUrls.length))
+      }, 2000)
+      
+      toast({
+        title: "Success",
+        description: `${imageUrls.length} images uploaded successfully`
+      })
+    } catch (error) {
+      console.error('Error uploading multiple images:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload images",
+        variant: "destructive"
+      })
+    } finally {
+      setGalleryImageUploading(false)
     }
   }
 
@@ -155,9 +228,14 @@ export default function NewProductPage() {
       ...prev,
       gallery_images: prev.gallery_images.filter((_, i) => i !== index)
     }))
+    setGalleryImageSuccess(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleFinalSubmit = async () => {
+    console.log('=== HANDLE FINAL SUBMIT CALLED ===')
+    console.log('Final submit clicked, form data:', formData)
+    console.log('Loading state:', loading)
+    
     if (!formData.name || !formData.price || !formData.category_id) {
       toast({
         title: "Error",
@@ -167,31 +245,47 @@ export default function NewProductPage() {
       return
     }
 
+    if (!formData.main_image) {
+      toast({
+        title: "Error",
+        description: "Please upload a main image",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
       setLoading(true)
+      console.log('Starting product creation...')
+      
+      const productData = {
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description,
+        short_description: formData.short_description,
+        price: parseFloat(formData.price),
+        original_price: formData.original_price ? parseFloat(formData.original_price) : null,
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        category_id: parseInt(formData.category_id),
+        is_active: formData.is_active,
+        is_featured: formData.is_featured,
+        badge: formData.badge,
+        weight: formData.weight ? parseFloat(formData.weight) : null,
+        dimensions: formData.dimensions,
+        material: formData.material,
+        origin: formData.origin,
+        image: formData.main_image,
+        gallery: formData.gallery_images
+      }
+      
+      console.log('Sending product data:', productData)
       
       const data = await apiCall('/api/admin/products', {
         method: 'POST',
-        body: JSON.stringify({
-          name: formData.name,
-          slug: formData.slug,
-          description: formData.description,
-          short_description: formData.short_description,
-          price: parseFloat(formData.price),
-          original_price: formData.original_price ? parseFloat(formData.original_price) : null,
-          stock_quantity: parseInt(formData.stock_quantity) || 0,
-          category_id: parseInt(formData.category_id),
-          is_active: formData.is_active,
-          is_featured: formData.is_featured,
-          badge: formData.badge,
-          weight: formData.weight ? parseFloat(formData.weight) : null,
-          dimensions: formData.dimensions,
-          material: formData.material,
-          origin: formData.origin,
-          image: formData.main_image,
-          gallery: formData.gallery_images
-        })
+        body: JSON.stringify(productData)
       })
+      
+      console.log('API response:', data)
       
       if (data.success) {
         toast({
@@ -218,21 +312,15 @@ export default function NewProductPage() {
     }
   }
 
-  const nextStep = () => {
-    if (currentStep < 4) {
-      setCurrentStep(currentStep + 1)
-    }
+  // Form validation for create button
+  const isFormValid = () => {
+    return formData.name && 
+           formData.slug && 
+           formData.description && 
+           formData.price && 
+           formData.category_id && 
+           formData.main_image
   }
-
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1)
-    }
-  }
-
-  const canProceedToStep2 = formData.name && formData.slug && formData.description && formData.price && formData.category_id
-  const canProceedToStep3 = canProceedToStep2
-  const canProceedToStep4 = canProceedToStep3 && formData.main_image
 
   return (
     <div className="space-y-6">
@@ -252,38 +340,30 @@ export default function NewProductPage() {
         </div>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-center space-x-4">
-        {[1, 2, 3, 4].map((step) => (
-          <div key={step} className="flex items-center">
-            <div className={`
-              w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-              ${currentStep >= step 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-muted text-muted-foreground'
-              }
-            `}>
-              {step}
-            </div>
-            <div className="ml-2 text-sm">
-              {step === 1 && 'Basic Info'}
-              {step === 2 && 'Details'}
-              {step === 3 && 'Images'}
-              {step === 4 && 'Review'}
-            </div>
-            {step < 4 && (
-              <div className={`
-                w-12 h-0.5 ml-4
-                ${currentStep > step ? 'bg-primary' : 'bg-muted'}
-              `} />
-            )}
+      {/* Form Validation Status */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-blue-900">Form Status</h3>
+            <p className="text-sm text-blue-700">
+              {isFormValid() ? '✅ All required fields completed' : '⚠️ Please fill all required fields'}
+            </p>
           </div>
-        ))}
+          <div className="text-right">
+            <p className="text-sm font-medium text-blue-900">
+              {formData.gallery_images.length}/6 Gallery Images
+            </p>
+            <p className="text-xs text-blue-600">
+              {isFormValid() ? 'Ready to create product' : 'Complete required fields to enable create button'}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div>
-        {/* Step 1: Basic Information */}
-        {currentStep === 1 && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Basic Info & Details */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Basic Information Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -421,13 +501,13 @@ export default function NewProductPage() {
                 </div>
                 
                 <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => handleInputChange('is_active', checked)}
-                />
-                <Label htmlFor="active">Product is active</Label>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="active"
+                      checked={formData.is_active}
+                      onCheckedChange={(checked) => handleInputChange('is_active', checked)}
+                    />
+                    <Label htmlFor="active">Product is active</Label>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -440,23 +520,10 @@ export default function NewProductPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={!canProceedToStep2}
-                  className="no-transition"
-                >
-                  Next: Product Details
-                </Button>
-              </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Step 2: Product Details */}
-        {currentStep === 2 && (
+          {/* Product Details Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -514,261 +581,171 @@ export default function NewProductPage() {
                   />
                 </div>
               </div>
-
-              <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={prevStep} className="no-transition">
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  className="no-transition"
-                >
-                  Next: Add Images
-                </Button>
-              </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
-        {/* Step 3: Images */}
-        {currentStep === 3 && (
+        {/* Right Column - Images & Actions */}
+        <div className="space-y-6">
+          {/* Main Image Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ImageIcon className="h-5 w-5" />
-                Product Images
+                Main Product Image *
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Upload the primary image for your product
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Main Image */}
-              <div className="space-y-4">
-                <Label>Main Image *</Label>
-                <FileUpload
-                  onFileSelect={(file) => handleImageUpload(file, 'main')}
-                  disabled={uploading}
-                  loading={uploading}
-                  showPreview={true}
-                  currentImage={formData.main_image}
-                  onRemove={() => setFormData(prev => ({ ...prev, main_image: '' }))}
-                />
-              </div>
-
-              {/* Gallery Images */}
-              <div className="space-y-4">
-                <Label>Gallery Images (Optional)</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-                  {formData.gallery_images.map((image, index) => (
-                    <div key={index} className="relative group">
-                      <div className="w-full h-32 border rounded-lg overflow-hidden">
-                        <img
-                          src={image}
-                          alt={`Gallery image ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity no-transition"
-                        onClick={() => removeGalleryImage(index)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  {formData.gallery_images.length < 6 && (
-                    <FileUpload
-                      onFileSelect={(file) => handleImageUpload(file, 'gallery')}
-                      disabled={uploading}
-                      loading={uploading}
-                      className="w-full h-32"
-                    >
-                      <div className="w-full h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all duration-200 hover:scale-105">
-                        <div className="text-center">
-                          <Plus className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
-                          <p className="text-xs text-muted-foreground">
-                            Add Image
-                          </p>
-                        </div>
-                      </div>
-                    </FileUpload>
-                  )}
+            <CardContent className="space-y-4">
+              <FileUpload
+                onFileSelect={(file) => handleImageUpload(file, 'main')}
+                disabled={mainImageUploading}
+                loading={mainImageUploading}
+                showPreview={true}
+                currentImage={formData.main_image}
+                success={mainImageSuccess}
+                onRemove={() => {
+                  setFormData(prev => ({ ...prev, main_image: '' }))
+                  setMainImageSuccess(false)
+                }}
+              />
+              
+              {formData.main_image && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Main image uploaded!</span>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={prevStep} className="no-transition">
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={!canProceedToStep4}
-                  className="no-transition"
-                >
-                  Next: Review Product
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
-        )}
 
-        {/* Step 4: Review */}
-        {currentStep === 4 && (
+          {/* Gallery Images Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Review Product
+                <ImageIcon className="h-5 w-5" />
+                Gallery Images
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Add additional images (optional)
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Product Name</Label>
-                    <p className="font-medium">{formData.name}</p>
+            <CardContent className="space-y-4">
+              {/* Multi Upload */}
+              {formData.gallery_images.length < 6 && (
+                <MultiFileUpload
+                  onFilesSelect={handleMultipleImageUpload}
+                  disabled={galleryImageUploading}
+                  loading={galleryImageUploading}
+                  maxFiles={6 - formData.gallery_images.length}
+                  className="w-full"
+                />
+              )}
+
+              {/* Gallery Images Grid */}
+              {formData.gallery_images.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Uploaded Images</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.gallery_images.length}/6
+                    </span>
                   </div>
                   
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Slug</Label>
-                    <p className="font-medium text-sm font-mono">{formData.slug}</p>
-                  </div>
-                  
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Category</Label>
-                    <p className="font-medium">
-                      {categories.find(c => c.id.toString() === formData.category_id)?.name}
-                    </p>
-                  </div>
-                  
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Pricing</Label>
-                    <div className="space-y-1">
-                      <p className="font-medium text-lg">₹{formData.price}</p>
-                      {formData.original_price && (
-                        <p className="text-sm text-muted-foreground line-through">
-                          Original: ₹{formData.original_price}
-                        </p>
-                      )}
-                  </div>
-                  </div>
-                  
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Stock & Status</Label>
-                    <div className="space-y-2">
-                      <p className="font-medium">Stock: {formData.stock_quantity || 0}</p>
-                      <div className="flex gap-2">
-                    <Badge variant={formData.is_active ? "default" : "secondary"}>
-                      {formData.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                        {formData.is_featured && (
-                          <Badge variant="outline">Featured</Badge>
-                        )}
-                        {formData.badge && (
-                          <Badge variant="secondary">{formData.badge}</Badge>
-                        )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {formData.gallery_images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-square border rounded-lg overflow-hidden relative bg-muted">
+                          <img
+                            src={image}
+                            alt={`Gallery ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Gallery image failed to load:', image)
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                          
+                          {galleryImageSuccess[index] && (
+                            <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            </div>
+                          )}
+                          
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 p-0"
+                            onClick={() => removeGalleryImage(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Create Product Button */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h3 className="font-medium text-lg">Ready to Create?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {isFormValid() 
+                      ? 'All required fields are completed' 
+                      : 'Please complete all required fields'
+                    }
+                  </p>
                 </div>
                 
-                <div className="space-y-4">
-                  {formData.short_description && (
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <Label className="text-sm text-muted-foreground">Short Description</Label>
-                      <p className="text-sm mt-1">{formData.short_description}</p>
-                    </div>
-                  )}
-                  
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Full Description</Label>
-                    <p className="text-sm mt-1">{formData.description}</p>
-                  </div>
-                  
-                  {(formData.weight || formData.dimensions || formData.material || formData.origin) && (
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <Label className="text-sm text-muted-foreground">Product Details</Label>
-                      <div className="space-y-1 mt-2 text-sm">
-                        {formData.weight && <p><span className="font-medium">Weight:</span> {formData.weight} kg</p>}
-                        {formData.dimensions && <p><span className="font-medium">Dimensions:</span> {formData.dimensions}</p>}
-                        {formData.material && <p><span className="font-medium">Material:</span> {formData.material}</p>}
-                        {formData.origin && <p><span className="font-medium">Origin:</span> {formData.origin}</p>}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {formData.main_image && (
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <Label className="text-sm text-muted-foreground">Main Image</Label>
-                      <div className="w-32 h-32 border rounded-lg overflow-hidden mt-2">
-                        <img
-                          src={formData.main_image}
-                          alt="Main product image"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {formData.gallery_images.length > 0 && (
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <Label className="text-sm text-muted-foreground">
-                        Gallery Images ({formData.gallery_images.length})
-                      </Label>
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        {formData.gallery_images.slice(0, 4).map((image, index) => (
-                          <div key={index} className="w-16 h-16 border rounded overflow-hidden">
-                            <img
-                              src={image}
-                              alt={`Gallery ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                        {formData.gallery_images.length > 4 && (
-                          <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
-                            <span className="text-xs text-muted-foreground">
-                              +{formData.gallery_images.length - 4}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={prevStep} className="no-transition">
-                  Previous
-                </Button>
                 <Button 
                   type="button" 
-                  onClick={handleFinalSubmit}
-                  disabled={loading} 
-                  className="no-transition"
+                  onClick={(e) => {
+                    console.log('Create Product button clicked!')
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleFinalSubmit()
+                  }}
+                  disabled={!isFormValid() || loading} 
+                  className="w-full h-12 text-lg"
+                  size="lg"
                 >
                   {loading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating...
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Creating Product...
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="h-5 w-5 mr-2" />
                       Create Product
                     </>
                   )}
                 </Button>
+                
+                {!isFormValid() && (
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Required: Name, Category, Description, Price, Main Image
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
+
     </div>
   )
 }

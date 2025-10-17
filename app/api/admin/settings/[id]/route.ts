@@ -119,3 +119,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete setting' }, { status: 500 })
   }
 }
+
+

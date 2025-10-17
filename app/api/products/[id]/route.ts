@@ -59,7 +59,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       shortDescription: product.short_description,
       gallery: product.gallery ? (() => {
         try {
-          return JSON.parse(product.gallery)
+          // If it's already an array, return it directly
+          if (Array.isArray(product.gallery)) {
+            return product.gallery
+          }
+          // If it's a string, try to parse it as JSON
+          if (typeof product.gallery === 'string') {
+            return JSON.parse(product.gallery)
+          }
+          return product.gallery
         } catch (error) {
           console.error('Error parsing gallery JSON:', error, 'Raw data:', product.gallery)
           return null
